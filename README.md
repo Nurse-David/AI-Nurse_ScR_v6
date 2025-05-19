@@ -48,7 +48,9 @@ python -m ai_nurse_scr.cli extract --config config.yaml
 See `config_example.yaml` for the minimal keys (`pdf_dir`, `run_id`) your configuration file must define.
 
 Running this command executes the full extraction pipeline and writes a
-JSONL file of metadata to the configured output directory.
+JSONL file of metadata to the configured output directory. Each run also
+creates a `config_snapshot.yaml` in the same directory capturing the loaded
+configuration along with the current package version and git commit hash.
 
 ## Running in Google Colab
 When using Colab you may want project files to persist on Google Drive.
@@ -57,34 +59,21 @@ First create a user secret:
 1. Open **Settings → Manage user secrets** in the Colab menu.
 2. Add your OpenAI key under the name `OPENAI_API_KEY`.
 
-The snippet below mounts Drive, creates a timestamped project folder, clones
-the repository and loads the secret:
+Instead of manually mounting Drive and creating folders you can use the helper
+script in `colab_setup.py`:
 
 ```python
-from google.colab import drive, userdata
-from pathlib import Path
-import time
+import colab_setup
 
-drive.mount('/content/drive')
-timestamp = time.strftime('%y%m%d_%H%M')
-project_root = Path('/content/drive/My Drive/Pilot') / f'ScR_GitHub_v1_{timestamp}'
-project_root.mkdir(parents=True, exist_ok=True)
-%cd $project_root
-!git clone https://github.com/Nurse-David/AI-Nurse_ScR_v6.git
-%cd AI-Nurse_ScR_v6
-!pip install -r requirements.txt
-
-# Retrieve your key from Colab secrets and expose it as an env variable
-import os
-os.environ["OPENAI_API_KEY"] = userdata.get('OPENAI_API_KEY')
-
-pdf_root = Path('/content/drive/My Drive/Pilot/PDFs')
-pdf_root.mkdir(parents=True, exist_ok=True)
-
+project_root, pdf_dir = colab_setup.setup()
 ```
 
-Store your PDFs in `/content/drive/My Drive/Pilot/PDFs` and reference that
-directory when running the CLI or notebook.
+This will mount Drive (if running in Colab), create a timestamped project
+folder and set up a `PDFs` directory. The OpenAI secret stored in Colab will be
+exported as `OPENAI_API_KEY` for you.
+
+Store your PDFs in the reported `pdf_dir` and reference that directory when
+running the CLI or notebook.
 
 ## Demo Notebook
 For an interactive walkthrough open `Nurse_AI_ScR_v6_3.ipynb` in Jupyter or
