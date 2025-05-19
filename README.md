@@ -26,8 +26,10 @@ URL rather than the placeholder angle brackets:
 git clone https://github.com/Nurse-David/AI-Nurse_ScR_v6.git
 cd AI-Nurse_ScR_v6
 pip install -r requirements.txt
-# Set your OpenAI API key so extraction functions can call the API
+# If running locally export your OpenAI key so extraction functions can call the API
 export OPENAI_API_KEY=<your-api-key>
+# On Google Colab store the key as a secret named `OPENAI_API_KEY` and use the
+# snippet in the next section to load it.
 ```
 
 ## Running the CLI
@@ -50,9 +52,13 @@ extended with real pipeline logic as needed.
 
 ## Running in Google Colab
 When using Colab you may want project files to persist on Google Drive.
-Store your OpenAI key as a Colab secret named `OPENAI_API_KEY`. The snippet
-below mounts Drive, creates a timestamped project folder, clones the repository
-and loads the secret:
+First create a user secret:
+
+1. Open **Settings → Manage user secrets** in the Colab menu.
+2. Add your OpenAI key under the name `OPENAI_API_KEY`.
+
+The snippet below mounts Drive, creates a timestamped project folder, clones
+the repository and loads the secret:
 
 ```python
 from google.colab import drive, userdata
