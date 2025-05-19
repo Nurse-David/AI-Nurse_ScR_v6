@@ -4,7 +4,7 @@ from pathlib import Path
 
 def load_config(path: str) -> dict:
     """Load JSON configuration from path."""
-    with open(path, 'r') as f:
+    with open(path, 'r', encoding='utf-8') as f:
         return json.load(f)
 
 
