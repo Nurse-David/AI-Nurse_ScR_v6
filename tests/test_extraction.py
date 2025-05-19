@@ -3,13 +3,13 @@ import unittest
 from unittest.mock import patch, MagicMock
 import types
 import sys
-from ai_nurse_scr import extraction
+from ai_nurse_scr import extraction, utils
 
 
 class TestNormalization(unittest.TestCase):
     def test_normalize_doi(self):
-        assert extraction.normalize_doi("https://doi.org/10.1000/ABC") == "10.1000/abc"
-        assert extraction.normalize_doi("10.1000/xyz") == "10.1000/xyz"
+        assert utils.normalize_doi("https://doi.org/10.1000/ABC") == "10.1000/abc"
+        assert utils.normalize_doi("10.1000/xyz") == "10.1000/xyz"
 
     def test_clean_str(self):
         assert extraction.clean_str("A B,C!") == "abc"

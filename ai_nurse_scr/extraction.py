@@ -1,5 +1,6 @@
 import os
 import json
+from .utils import normalize_doi
 try:
     import requests
 except Exception:  # pragma: no cover - optional dependency
@@ -12,15 +13,6 @@ fields = [
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 llm_model = "gpt-4"
-
-
-def normalize_doi(doi: str) -> str:
-    if not doi:
-        return ""
-    doi = str(doi).strip().lower()
-    if doi.startswith("https://doi.org/"):
-        doi = doi[len("https://doi.org/"):]
-    return doi
 
 
 def clean_str(txt: str) -> str:

@@ -23,12 +23,18 @@ def pdf_hash_id(pdf_path, length=8):
     return f"paper_ID_{h}"
 
 
-def normalize_doi(x):
-    """Normalize DOI strings into a canonical form."""
+def normalize_doi(x: str | None) -> str:
+    """Return a canonical DOI string.
+
+    This helper removes leading ``https://doi.org/`` (or ``http://dx.doi.org``)
+    prefixes, strips whitespace and normalizes the case to lower. Passing
+    ``None`` or a non-string value returns an empty string.
+    """
     if not x or not isinstance(x, str):
         return ""
-    x = x.strip().lower().replace(" ", "")
+    x = x.strip().lower()
     x = re.sub(r"^(https?://(dx\.)?doi\.org/)", "", x)
+    x = x.replace(" ", "")
     x = re.sub(r"\s", "", x)
     return x
 
