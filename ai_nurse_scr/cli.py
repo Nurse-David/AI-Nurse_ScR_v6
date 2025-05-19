@@ -21,6 +21,16 @@ def main(argv=None):
         "--pdf-dir", help="Directory containing PDF files", required=True
     )
 
+    qa = subparsers.add_parser(
+        "qa", help="Run sequential QA rounds on PDF files"
+    )
+    qa.add_argument(
+        "--config", help="Path to a YAML/JSON configuration file", required=True
+    )
+    qa.add_argument(
+        "--pdf-dir", help="Directory containing PDF files", required=True
+    )
+    
     spot = subparsers.add_parser(
         "spotcheck", help="LLM-based semantic spot check between two CSV files"
     )
@@ -37,12 +47,19 @@ def main(argv=None):
     spot.add_argument("--api-key", help="OpenAI API key")
     spot.add_argument("--model", default="gpt-4.1", help="LLM model name")
 
+
     args = parser.parse_args(argv)
 
     if args.command == "extract":
         setup.install_dependencies()
         setup.prepare_environment()
         pipeline.run(args.config, args.pdf_dir)
+
+    elif args.command == "qa":
+        setup.install_dependencies()
+        setup.prepare_environment()
+        pipeline.run_rounds(args.config, args.pdf_dir)
+
     elif args.command == "spotcheck":
         spotcheck_files(
             Path(args.file1),
@@ -54,6 +71,7 @@ def main(argv=None):
             openai_api_key=args.api_key,
             model=args.model,
         )
+
 
 
 if __name__ == "__main__":

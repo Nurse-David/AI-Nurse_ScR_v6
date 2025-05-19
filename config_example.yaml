@@ -1,2 +1,11 @@
 pdf_dir: path/to/pdfs
 run_id: example_run
+output_dir: output
+rounds:
+  question: "Summarize the paper"
+  chunk_size: 2000
+  round1:
+    top_n: 1
+    temperature: 0.7
+  round2:
+    temperature: 0
