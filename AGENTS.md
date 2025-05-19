@@ -29,3 +29,7 @@ Ensure all tests pass (or explain any failures).
 - `ai_nurse_scr/` – main package.
 - `tests/` – test suite.
 - `notebooks/` – example notebooks (not required for normal testing).
+- `legacy_versions/` – contains the historical notebooks `Nurse-AI v5.3` and
+  `Nurse_AI_ScR_v6_3.ipynb`. Use these notebooks solely as references to guide
+  ongoing development toward the project mission; do not modify or execute
+  them as part of the main pipeline.
