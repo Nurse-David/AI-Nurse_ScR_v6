@@ -70,6 +70,9 @@ class TestPipelineHelpers(unittest.TestCase):
             pipeline.run(cfg.name, td)
             out = Path(td) / 'run_metadata.jsonl'
             self.assertTrue(out.exists())
+            metrics_dir = Path('outputs/metrics')
+            summary = metrics_dir / 'summary.csv'
+            self.assertTrue(summary.exists())
 
 
 if __name__ == '__main__':
