@@ -48,7 +48,6 @@ def classification_metrics(true: Iterable[bool], pred: Iterable[bool]) -> Dict[s
 
 """Utility functions for computing pipeline metrics."""
 
-from __future__ import annotations
 
 from pathlib import Path
 import json

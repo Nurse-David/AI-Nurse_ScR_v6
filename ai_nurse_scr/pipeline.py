@@ -1,20 +1,13 @@
 import json
 import subprocess
 from pathlib import Path
+import tempfile
 
-
+from dataclasses import asdict
 from typing import List
 
-from . import extraction, config
+from . import extraction, metrics, __version__, config
 
-from . import extraction, __version__
-
-
-
-def load_config(path: str) -> dict:
-    """Load JSON configuration from path."""
-    with open(path, 'r', encoding='utf-8') as f:
-        return json.load(f)
 
 
 def find_pdfs(directory: str):
@@ -50,14 +43,14 @@ def extract_data(text: str) -> dict:
 
 def run(config_path: str, pdf_dir: str) -> None:
     """Run the pipeline sequentially using the given configuration and PDF directory."""
-    config = load_config(config_path)
+    cfg = config.load_config(config_path)
     print(f"[INFO] Loaded config from {config_path}")
 
     pdfs = find_pdfs(pdf_dir)
     if not pdfs:
         print(f"[WARNING] No PDF files found in {pdf_dir}")
 
-    chunk_size = int(config.get("chunk_size", 200))
+    chunk_size = int(cfg.extra.get("chunk_size", 200))
     all_chunks: list[list[str]] = []
     results = []
     for pdf in pdfs:
@@ -69,11 +62,11 @@ def run(config_path: str, pdf_dir: str) -> None:
         data["pdf_path"] = str(pdf)
         results.append(data)
 
-    out_dir = Path(config.extra.get("output_dir", "output"))
+    out_dir = Path(cfg.extra.get("output_dir", "output"))
     out_dir.mkdir(parents=True, exist_ok=True)
    
 
-    snapshot = {"config": config, "version": __version__}
+    snapshot = {"config": asdict(cfg), "version": __version__}
     try:
         commit = subprocess.check_output(
             ["git", "rev-parse", "HEAD"],
@@ -87,7 +80,7 @@ def run(config_path: str, pdf_dir: str) -> None:
     with open(out_dir / "config_snapshot.yaml", "w", encoding="utf-8") as f:
         json.dump(snapshot, f, ensure_ascii=False, indent=2)
 
-    out_file = out_dir / f"{config.get('run_id', 'run')}_metadata.jsonl"
+    out_file = out_dir / f"{cfg.run_id}_metadata.jsonl"
     
     with open(out_file, "w", encoding="utf-8") as f:
         for row in results:
@@ -95,36 +88,36 @@ def run(config_path: str, pdf_dir: str) -> None:
 
     stats = metrics.chunk_statistics(all_chunks)
     metrics.write_metrics(
-        config.get("run_id", "run"),
+        cfg.run_id,
         "tokenization",
         stats,
-        config.get("metrics_dir", "outputs/metrics"),
+        cfg.extra.get("metrics_dir", "outputs/metrics"),
     )
 
-    if config.get("retrieval_predictions") and config.get("retrieval_references"):
-        with open(config["retrieval_predictions"], "r", encoding="utf-8") as f:
+    if cfg.extra.get("retrieval_predictions") and cfg.extra.get("retrieval_references"):
+        with open(cfg.extra["retrieval_predictions"], "r", encoding="utf-8") as f:
             retrieved = json.load(f)
-        with open(config["retrieval_references"], "r", encoding="utf-8") as f:
+        with open(cfg.extra["retrieval_references"], "r", encoding="utf-8") as f:
             references = json.load(f)
         ret_metrics = metrics.compute_retrieval_metrics(retrieved, references)
         metrics.write_metrics(
-            config.get("run_id", "run"),
+            cfg.run_id,
             "retrieval",
             ret_metrics,
-            config.get("metrics_dir", "outputs/metrics"),
+            cfg.extra.get("metrics_dir", "outputs/metrics"),
         )
 
-    if config.get("answer_predictions") and config.get("answer_references"):
-        with open(config["answer_predictions"], "r", encoding="utf-8") as f:
+    if cfg.extra.get("answer_predictions") and cfg.extra.get("answer_references"):
+        with open(cfg.extra["answer_predictions"], "r", encoding="utf-8") as f:
             preds = json.load(f)
-        with open(config["answer_references"], "r", encoding="utf-8") as f:
+        with open(cfg.extra["answer_references"], "r", encoding="utf-8") as f:
             refs = json.load(f)
         ans_metrics = metrics.compute_answer_metrics(preds, refs)
         metrics.write_metrics(
-            config.get("run_id", "run"),
+            cfg.run_id,
             "answer",
             ans_metrics,
-            config.get("metrics_dir", "outputs/metrics"),
+            cfg.extra.get("metrics_dir", "outputs/metrics"),
         )
 
     print("[INFO] Pipeline completed")
@@ -132,14 +125,14 @@ def run(config_path: str, pdf_dir: str) -> None:
 
 def run_multiple(config_path: str, pdf_dir: str, rounds: int) -> list[Path]:
     """Run the pipeline multiple times returning output file paths."""
-    base_cfg = load_config(config_path)
+    base_cfg = config.load_config(config_path)
     outputs: list[Path] = []
     for i in range(1, rounds + 1):
-        run_id = f"{base_cfg.get('run_id', 'run')}_round{i}"
+        run_id = f"{base_cfg.run_id}_round{i}"
         cfg = {
-            "pdf_dir": base_cfg.get("pdf_dir"),
+            "pdf_dir": base_cfg.pdf_dir,
             "run_id": run_id,
-            **{k: v for k, v in base_cfg.items() if k not in {"pdf_dir", "run_id"}},
+            **base_cfg.extra,
         }
         with tempfile.NamedTemporaryFile("w+", suffix=".json", delete=False) as tmp:
             json.dump(cfg, tmp)
