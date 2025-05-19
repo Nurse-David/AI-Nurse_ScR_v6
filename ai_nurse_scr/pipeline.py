@@ -1,13 +1,7 @@
 import json
 from pathlib import Path
 from . import extraction
-
-
-def load_config(path: str) -> dict:
-    """Load JSON configuration from path."""
-    with open(path, 'r', encoding='utf-8') as f:
-        return json.load(f)
-
+from .config import load_config
 
 def find_pdfs(directory: str):
     """Yield PDF files within the directory."""
@@ -56,9 +50,9 @@ def run(config_path: str, pdf_dir: str) -> None:
         data["pdf_path"] = str(pdf)
         results.append(data)
 
-    out_dir = Path(config.get("output_dir", "output"))
+    out_dir = Path(config.extra.get("output_dir", "output"))
     out_dir.mkdir(parents=True, exist_ok=True)
-    out_file = out_dir / f"{config.get('run_id', 'run')}_metadata.jsonl"
+    out_file = out_dir / f"{config.run_id}_metadata.jsonl"
     with open(out_file, "w", encoding="utf-8") as f:
         for row in results:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")

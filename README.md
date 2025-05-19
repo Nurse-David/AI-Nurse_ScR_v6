@@ -40,12 +40,12 @@ available commands:
 python -m ai_nurse_scr.cli --help
 ```
 
-A typical extraction run might look like:
+A typical extraction run might look like. The configuration file may be YAML or JSON:
 
 ```bash
 python -m ai_nurse_scr.cli extract --config config.yaml
 ```
-See `config_example.yaml` for the minimal keys (`pdf_dir`, `run_id`) your configuration file must define.
+See `config_example.yaml` for the minimal keys (`pdf_dir`, `run_id`) your configuration file must define. JSON files follow the same schema.
 
 Running this command executes the full extraction pipeline and writes a
 JSONL file of metadata to the configured output directory.
