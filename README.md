@@ -43,6 +43,7 @@ A typical extraction run might look like:
 ```bash
 python -m ai_nurse_scr.cli extract --config config.yaml
 ```
+See `config_example.yaml` for the minimal keys (`pdf_dir`, `run_id`) your configuration file must define.
 
 The current implementation is a placeholder and will print a message. It can be
 extended with real pipeline logic as needed.
@@ -66,9 +67,14 @@ project_root.mkdir(parents=True, exist_ok=True)
 !git clone https://github.com/Nurse-David/AI-Nurse_ScR_v6.git
 %cd AI-Nurse_ScR_v6
 !pip install -r requirements.txt
+
 # Retrieve your key from Colab secrets and expose it as an env variable
 import os
 os.environ["OPENAI_API_KEY"] = userdata.get('OPENAI_API_KEY')
+
+pdf_root = Path('/content/drive/My Drive/Pilot/PDFs')
+pdf_root.mkdir(parents=True, exist_ok=True)
+
 ```
 
 Store your PDFs in `/content/drive/My Drive/Pilot/PDFs` and reference that
@@ -90,4 +96,8 @@ Execute the unit test suite using ``unittest``:
 ```bash
 python -m unittest discover tests -v
 ```
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
 
