@@ -53,3 +53,11 @@ CLI functionality.
 Earlier versions of the project were maintained as single, very large notebooks.
 These have been split into smaller modules and wrapped with a CLI to improve
 maintainability. The original notebooks are provided for reference only.
+
+## Running Tests
+Execute the unit test suite using ``unittest``:
+
+```bash
+python -m unittest discover tests -v
+```
+

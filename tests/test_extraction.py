@@ -3,7 +3,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 import types
 import sys
-import extraction
+from ai_nurse_scr import extraction
 
 
 class TestNormalization(unittest.TestCase):
@@ -22,7 +22,7 @@ class TestNormalization(unittest.TestCase):
 
 
 class TestCrossref(unittest.TestCase):
-    @patch("extraction.requests")
+    @patch("ai_nurse_scr.extraction.requests")
     def test_extract_crossref_full(self, mock_requests):
         response = {
             "message": {
@@ -49,7 +49,7 @@ class TestCrossref(unittest.TestCase):
 
 
 class TestOpenAlex(unittest.TestCase):
-    @patch("extraction.requests")
+    @patch("ai_nurse_scr.extraction.requests")
     def test_extract_openalex_full(self, mock_requests):
         response = {
             "doi": "https://doi.org/10.1234/test",
