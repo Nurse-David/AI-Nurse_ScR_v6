@@ -1,20 +1,21 @@
 import json
 import subprocess
 from pathlib import Path
+import tempfile
+import dataclasses
 
 
 from typing import List
 
-from . import extraction, config
+from . import extraction, config, metrics
 
 from . import extraction, __version__
 
 
 
-def load_config(path: str) -> dict:
-    """Load JSON configuration from path."""
-    with open(path, 'r', encoding='utf-8') as f:
-        return json.load(f)
+def load_config(path: str) -> config.Config:
+    """Load configuration using :func:`ai_nurse_scr.config.load_config`."""
+    return config.load_config(path)
 
 
 def find_pdfs(directory: str):
@@ -57,7 +58,7 @@ def run(config_path: str, pdf_dir: str) -> None:
     if not pdfs:
         print(f"[WARNING] No PDF files found in {pdf_dir}")
 
-    chunk_size = int(config.get("chunk_size", 200))
+    chunk_size = int(config.extra.get("chunk_size", 200))
     all_chunks: list[list[str]] = []
     results = []
     for pdf in pdfs:
@@ -73,7 +74,7 @@ def run(config_path: str, pdf_dir: str) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
    
 
-    snapshot = {"config": config, "version": __version__}
+    snapshot = {"config": dataclasses.asdict(config), "version": __version__}
     try:
         commit = subprocess.check_output(
             ["git", "rev-parse", "HEAD"],
@@ -87,7 +88,7 @@ def run(config_path: str, pdf_dir: str) -> None:
     with open(out_dir / "config_snapshot.yaml", "w", encoding="utf-8") as f:
         json.dump(snapshot, f, ensure_ascii=False, indent=2)
 
-    out_file = out_dir / f"{config.get('run_id', 'run')}_metadata.jsonl"
+    out_file = out_dir / f"{config.run_id}_metadata.jsonl"
     
     with open(out_file, "w", encoding="utf-8") as f:
         for row in results:
@@ -95,36 +96,36 @@ def run(config_path: str, pdf_dir: str) -> None:
 
     stats = metrics.chunk_statistics(all_chunks)
     metrics.write_metrics(
-        config.get("run_id", "run"),
+        config.run_id,
         "tokenization",
         stats,
-        config.get("metrics_dir", "outputs/metrics"),
+        config.extra.get("metrics_dir", "outputs/metrics"),
     )
 
-    if config.get("retrieval_predictions") and config.get("retrieval_references"):
-        with open(config["retrieval_predictions"], "r", encoding="utf-8") as f:
+    if config.extra.get("retrieval_predictions") and config.extra.get("retrieval_references"):
+        with open(config.extra["retrieval_predictions"], "r", encoding="utf-8") as f:
             retrieved = json.load(f)
-        with open(config["retrieval_references"], "r", encoding="utf-8") as f:
+        with open(config.extra["retrieval_references"], "r", encoding="utf-8") as f:
             references = json.load(f)
         ret_metrics = metrics.compute_retrieval_metrics(retrieved, references)
         metrics.write_metrics(
-            config.get("run_id", "run"),
+            config.run_id,
             "retrieval",
             ret_metrics,
-            config.get("metrics_dir", "outputs/metrics"),
+            config.extra.get("metrics_dir", "outputs/metrics"),
         )
 
-    if config.get("answer_predictions") and config.get("answer_references"):
-        with open(config["answer_predictions"], "r", encoding="utf-8") as f:
+    if config.extra.get("answer_predictions") and config.extra.get("answer_references"):
+        with open(config.extra["answer_predictions"], "r", encoding="utf-8") as f:
             preds = json.load(f)
-        with open(config["answer_references"], "r", encoding="utf-8") as f:
+        with open(config.extra["answer_references"], "r", encoding="utf-8") as f:
             refs = json.load(f)
         ans_metrics = metrics.compute_answer_metrics(preds, refs)
         metrics.write_metrics(
-            config.get("run_id", "run"),
+            config.run_id,
             "answer",
             ans_metrics,
-            config.get("metrics_dir", "outputs/metrics"),
+            config.extra.get("metrics_dir", "outputs/metrics"),
         )
 
     print("[INFO] Pipeline completed")
@@ -135,11 +136,11 @@ def run_multiple(config_path: str, pdf_dir: str, rounds: int) -> list[Path]:
     base_cfg = load_config(config_path)
     outputs: list[Path] = []
     for i in range(1, rounds + 1):
-        run_id = f"{base_cfg.get('run_id', 'run')}_round{i}"
+        run_id = f"{base_cfg.run_id}_round{i}"
         cfg = {
-            "pdf_dir": base_cfg.get("pdf_dir"),
+            "pdf_dir": base_cfg.pdf_dir,
             "run_id": run_id,
-            **{k: v for k, v in base_cfg.items() if k not in {"pdf_dir", "run_id"}},
+            **base_cfg.extra,
         }
         with tempfile.NamedTemporaryFile("w+", suffix=".json", delete=False) as tmp:
             json.dump(cfg, tmp)
