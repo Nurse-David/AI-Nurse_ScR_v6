@@ -67,8 +67,9 @@ def run(config_path: str, pdf_dir: str) -> None:
         data["pdf_path"] = str(pdf)
         results.append(data)
 
-    out_dir = Path(config.get("output_dir", "output"))
+    out_dir = Path(config.extra.get("output_dir", "output"))
     out_dir.mkdir(parents=True, exist_ok=True)
+   
 
     snapshot = {"config": config, "version": __version__}
     try:
@@ -85,6 +86,7 @@ def run(config_path: str, pdf_dir: str) -> None:
         json.dump(snapshot, f, ensure_ascii=False, indent=2)
 
     out_file = out_dir / f"{config.get('run_id', 'run')}_metadata.jsonl"
+    
     with open(out_file, "w", encoding="utf-8") as f:
         for row in results:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")

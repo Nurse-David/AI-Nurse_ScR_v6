@@ -4,19 +4,19 @@ import unittest
 from pathlib import Path
 import sys
 
-from ai_nurse_scr import pipeline
+from ai_nurse_scr import pipeline, config as config_mod
 from unittest.mock import patch
 import types
 
 
 class TestPipelineHelpers(unittest.TestCase):
     def test_load_config(self):
-        with tempfile.NamedTemporaryFile('w+', suffix='.json', delete=False) as tf:
+        with tempfile.NamedTemporaryFile('w+', suffix='.json') as tf:
             json.dump({'pdf_dir': 'data', 'run_id': 'run1'}, tf)
             tf.flush()
-            cfg = pipeline.load_config(tf.name)
-            self.assertEqual(cfg['pdf_dir'], 'data')
-            self.assertEqual(cfg['run_id'], 'run1')
+            cfg = config_mod.load_config(tf.name)
+            self.assertEqual(cfg.pdf_dir, 'data')
+            self.assertEqual(cfg.run_id, 'run1')
 
     def test_find_pdfs(self):
         with tempfile.TemporaryDirectory() as td:
