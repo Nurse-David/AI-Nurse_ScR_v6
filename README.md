@@ -49,7 +49,7 @@ See `config_example.yaml` for the minimal keys (`pdf_dir`, `run_id`) your config
 
 Running this command executes the full extraction pipeline and writes a
 JSONL file of metadata to the configured output directory. Each run also
-creates a `config_snapshot.yaml` in the same directory capturing the loaded
+creates a `config_snapshot.json` in the same directory capturing the loaded
 configuration along with the current package version and git commit hash.
 
 ## Running in Google Colab

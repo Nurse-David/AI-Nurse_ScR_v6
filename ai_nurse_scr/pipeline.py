@@ -87,7 +87,9 @@ def run(config_path: str, pdf_dir: str) -> None:
         commit = "unknown"
     snapshot["commit"] = commit
 
-    with open(out_dir / "config_snapshot.yaml", "w", encoding="utf-8") as f:
+    # Store a snapshot of the loaded configuration for reproducibility
+    # Use a JSON extension to match the file contents
+    with open(out_dir / "config_snapshot.json", "w", encoding="utf-8") as f:
         json.dump(snapshot, f, ensure_ascii=False, indent=2)
 
         

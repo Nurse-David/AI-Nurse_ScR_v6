@@ -74,7 +74,7 @@ class TestPipelineHelpers(unittest.TestCase):
             metrics_dir = Path('outputs/metrics')
             summary = metrics_dir / 'summary.csv'
             self.assertTrue(summary.exists())
-            snapshot = Path(td) / 'config_snapshot.yaml'
+            snapshot = Path(td) / 'config_snapshot.json'
             self.assertTrue(snapshot.exists())
             with open(snapshot) as sf:
                 snap = json.load(sf)
