@@ -1,8 +1,12 @@
 import json
+import subprocess
 from pathlib import Path
+
 from typing import List
 
 from . import extraction, config
+
+from . import extraction, __version__
 
 
 def load_config(path: str) -> dict:
@@ -51,19 +55,73 @@ def run(config_path: str, pdf_dir: str) -> None:
     if not pdfs:
         print(f"[WARNING] No PDF files found in {pdf_dir}")
 
+    chunk_size = int(config.get("chunk_size", 200))
+    all_chunks: list[list[str]] = []
     results = []
     for pdf in pdfs:
         text = extract_text(pdf)
+        tokens = metrics.simple_tokenize(text)
+        chunks = metrics.make_chunks(tokens, chunk_size)
+        all_chunks.extend(chunks)
         data = extract_data(text)
         data["pdf_path"] = str(pdf)
         results.append(data)
 
     out_dir = Path(config.get("output_dir", "output"))
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    snapshot = {"config": config, "version": __version__}
+    try:
+        commit = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            cwd=Path(__file__).resolve().parent.parent,
+            text=True,
+        ).strip()
+    except Exception:
+        commit = "unknown"
+    snapshot["commit"] = commit
+
+    with open(out_dir / "config_snapshot.yaml", "w", encoding="utf-8") as f:
+        json.dump(snapshot, f, ensure_ascii=False, indent=2)
+
     out_file = out_dir / f"{config.get('run_id', 'run')}_metadata.jsonl"
     with open(out_file, "w", encoding="utf-8") as f:
         for row in results:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+    stats = metrics.chunk_statistics(all_chunks)
+    metrics.write_metrics(
+        config.get("run_id", "run"),
+        "tokenization",
+        stats,
+        config.get("metrics_dir", "outputs/metrics"),
+    )
+
+    if config.get("retrieval_predictions") and config.get("retrieval_references"):
+        with open(config["retrieval_predictions"], "r", encoding="utf-8") as f:
+            retrieved = json.load(f)
+        with open(config["retrieval_references"], "r", encoding="utf-8") as f:
+            references = json.load(f)
+        ret_metrics = metrics.compute_retrieval_metrics(retrieved, references)
+        metrics.write_metrics(
+            config.get("run_id", "run"),
+            "retrieval",
+            ret_metrics,
+            config.get("metrics_dir", "outputs/metrics"),
+        )
+
+    if config.get("answer_predictions") and config.get("answer_references"):
+        with open(config["answer_predictions"], "r", encoding="utf-8") as f:
+            preds = json.load(f)
+        with open(config["answer_references"], "r", encoding="utf-8") as f:
+            refs = json.load(f)
+        ans_metrics = metrics.compute_answer_metrics(preds, refs)
+        metrics.write_metrics(
+            config.get("run_id", "run"),
+            "answer",
+            ans_metrics,
+            config.get("metrics_dir", "outputs/metrics"),
+        )
 
     print("[INFO] Pipeline completed")
 
