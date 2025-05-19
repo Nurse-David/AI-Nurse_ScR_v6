@@ -4,7 +4,18 @@ from ...utils import check_grobid_healthy
 
 
 def extract_grobid(pdf_path: str | Path) -> dict:
-    """Call a local GROBID service to extract header information."""
+    """Call a local GROBID service to extract header information.
+
+    Parameters
+    ----------
+    pdf_path:
+        Path to the PDF file processed by GROBID.
+
+    Returns
+    -------
+    dict
+        A dictionary containing ``grobid_xml`` if successful, otherwise empty.
+    """
     if not check_grobid_healthy():
         return {}
     try:

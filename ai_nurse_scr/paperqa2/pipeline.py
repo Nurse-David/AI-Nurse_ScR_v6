@@ -9,7 +9,18 @@ from .extract.llm import extract_llm
 
 
 def run_pipeline(pdf_path: str | Path) -> dict:
-    """Run the full extraction pipeline on a PDF."""
+    """Run the full extraction pipeline on a PDF.
+
+    Parameters
+    ----------
+    pdf_path:
+        Path to the PDF file to process.
+
+    Returns
+    -------
+    dict
+        Combined metadata extracted from all stages of the pipeline.
+    """
     pdf_path = Path(pdf_path)
     result = {
         "sha256": sha256_file(pdf_path),

@@ -4,18 +4,51 @@ from . import extraction
 
 
 def load_config(path: str) -> dict:
-    """Load JSON configuration from path."""
-    with open(path, 'r', encoding='utf-8') as f:
+    """Load a pipeline configuration file.
+
+    Parameters
+    ----------
+    path:
+        Path to a JSON file containing configuration options.
+
+    Returns
+    -------
+    dict
+        Dictionary with the parsed configuration values.
+    """
+    with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
 def find_pdfs(directory: str):
-    """Yield PDF files within the directory."""
-    return sorted(Path(directory).glob('*.pdf'))
+    """Return a list of PDFs under ``directory``.
+
+    Parameters
+    ----------
+    directory:
+        Directory to search for ``.pdf`` files.
+
+    Returns
+    -------
+    list[Path]
+        Sorted list of PDF paths found.
+    """
+    return sorted(Path(directory).glob("*.pdf"))
 
 
 def extract_text(pdf_path: Path) -> str:
-    """Return all text from a PDF using ``pdfplumber``."""
+    """Extract raw text from a PDF file.
+
+    Parameters
+    ----------
+    pdf_path:
+        Path to the PDF document.
+
+    Returns
+    -------
+    str
+        Concatenated text of all pages or an empty string on error.
+    """
     try:
         import pdfplumber
     except Exception:
@@ -28,7 +61,18 @@ def extract_text(pdf_path: Path) -> str:
 
 
 def extract_data(text: str) -> dict:
-    """Extract structured metadata from paper text."""
+    """Extract structured metadata from paper text.
+
+    Parameters
+    ----------
+    text:
+        Plain text extracted from the PDF.
+
+    Returns
+    -------
+    dict
+        Metadata dictionary containing keys from ``extraction.fields``.
+    """
     first_chunk = text[:4000]
     meta = extraction.extract_ai_llm_full(first_chunk)
     doi = meta.get("doi", "")
@@ -41,7 +85,19 @@ def extract_data(text: str) -> dict:
 
 
 def run(config_path: str, pdf_dir: str) -> None:
-    """Run the pipeline sequentially using the given configuration and PDF directory."""
+    """Execute the CLI pipeline.
+
+    Parameters
+    ----------
+    config_path:
+        Path to a JSON configuration file.
+    pdf_dir:
+        Directory containing PDF files to process.
+
+    Returns
+    -------
+    None
+    """
     config = load_config(config_path)
     print(f"[INFO] Loaded config from {config_path}")
 

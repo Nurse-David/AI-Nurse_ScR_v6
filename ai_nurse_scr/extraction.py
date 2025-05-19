@@ -16,22 +16,75 @@ llm_model = "gpt-4"
 
 
 def clean_str(txt: str) -> str:
-    return "".join(c for c in str(txt or "").lower() if c.isalnum() or c.isspace()).replace(" ", "")
+    """Normalize a string for comparison.
+
+    Non-alphanumeric characters are removed and the string is lowercased. This
+    assists with fuzzy matching of metadata fields.
+
+    Parameters
+    ----------
+    txt:
+        Input text that may contain punctuation or mixed case.
+
+    Returns
+    -------
+    str
+        Cleaned, lowercase alphanumeric text.
+    """
+    return "".join(
+        c for c in str(txt or "").lower() if c.isalnum() or c.isspace()
+    ).replace(" ", "")
 
 
 def approx_match(a: str, b: str, field: str) -> bool:
+    """Loosely compare two metadata values.
+
+    Parameters
+    ----------
+    a, b:
+        Values to compare.
+    field:
+        Metadata field name controlling the comparison logic.
+
+    Returns
+    -------
+    bool
+        ``True`` if the values are considered equivalent.
+    """
     if a is None or b is None:
         return False
     if field == "doi":
         return normalize_doi(a) == normalize_doi(b)
     if field in ["author_keywords"]:
-        sa = sorted({x.strip() for x in str(a).replace(";", " ").replace(",", " ").lower().split() if x})
-        sb = sorted({x.strip() for x in str(b).replace(";", " ").replace(",", " ").lower().split() if x})
+        sa = sorted({
+            x.strip()
+            for x in str(a).replace(";", " ").replace(",", " ").lower().split()
+            if x
+        })
+        sb = sorted({
+            x.strip()
+            for x in str(b).replace(";", " ").replace(",", " ").lower().split()
+            if x
+        })
         return sa == sb
     return clean_str(a) == clean_str(b)
 
 
 def extract_crossref_full(doi: str, title: str | None = None) -> dict:
+    """Query Crossref for publication metadata.
+
+    Parameters
+    ----------
+    doi:
+        DOI of the work to query.
+    title:
+        Optional title used as a fallback when DOI is not available.
+
+    Returns
+    -------
+    dict
+        Dictionary containing metadata fields defined in ``fields``.
+    """
     meta = {f: "" for f in fields}
     try:
         url = f"https://api.crossref.org/works/{normalize_doi(doi)}" if doi else None
@@ -66,6 +119,20 @@ def extract_crossref_full(doi: str, title: str | None = None) -> dict:
 
 
 def extract_openalex_full(doi: str, title: str | None = None) -> dict:
+    """Retrieve OpenAlex metadata for a publication.
+
+    Parameters
+    ----------
+    doi:
+        DOI used to query the API.
+    title:
+        Optional title used when a DOI is not present.
+
+    Returns
+    -------
+    dict
+        Metadata dictionary conforming to ``fields``.
+    """
     meta = {f: "" for f in fields}
     try:
         url = (
@@ -105,6 +172,22 @@ def extract_openalex_full(doi: str, title: str | None = None) -> dict:
 
 
 def extract_ai_llm_doi_only(first_page: str, api_key: str | None = None, model: str | None = None) -> str:
+    """Use an LLM to extract just the DOI from a text snippet.
+
+    Parameters
+    ----------
+    first_page:
+        Text from the first page of the PDF.
+    api_key:
+        Optional OpenAI API key. If not supplied, ``OPENAI_API_KEY`` is used.
+    model:
+        Chat model name to invoke.
+
+    Returns
+    -------
+    str
+        Extracted DOI string or an empty string if none is found.
+    """
     api_key = api_key or OPENAI_API_KEY
     prompt = (
         "Extract only the DOI (Digital Object Identifier) from the following text. If none is found, return an empty JSON.\n"
@@ -132,6 +215,22 @@ def extract_ai_llm_doi_only(first_page: str, api_key: str | None = None, model: 
 
 
 def extract_ai_llm_full(first_page: str, api_key: str | None = None, model: str | None = None) -> dict:
+    """Extract full metadata using an LLM.
+
+    Parameters
+    ----------
+    first_page:
+        Text from the PDF's first page.
+    api_key:
+        Optional OpenAI API key to use for the request.
+    model:
+        Name of the chat model to query.
+
+    Returns
+    -------
+    dict
+        Dictionary with metadata fields defined in ``fields``.
+    """
     api_key = api_key or OPENAI_API_KEY
     prompt = (
         "Extract the following metadata as a JSON object from the text provided: title, author, year, doi, "
