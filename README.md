@@ -76,14 +76,15 @@ Store your PDFs in the reported `pdf_dir` and reference that directory when
 running the CLI or notebook.
 
 ## Demo Notebook
-For an interactive walkthrough open `Nurse_AI_ScR_v6_3.ipynb` in Jupyter or
+For an interactive walkthrough open `legacy_versions/Nurse_AI_ScR_v6_3.ipynb` in Jupyter or
 VS Code. The notebook demonstrates each stage of the pipeline and mirrors the
 CLI functionality.
 
 ## History
 Earlier versions of the project were maintained as single, very large notebooks.
 These have been split into smaller modules and wrapped with a CLI to improve
-maintainability. The original notebooks are provided for reference only.
+maintainability. The original notebooks are provided for reference only and are
+available in the `legacy_versions/` directory.
 
 ## Running Tests
 Execute the unit test suite using ``unittest``:
