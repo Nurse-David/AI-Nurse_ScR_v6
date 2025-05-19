@@ -19,10 +19,11 @@ notebooks remain in this repository for reference.
 The CLI orchestrates these steps to provide a deterministic, repeatable run.
 
 ## Installation
-Clone the repository and install the required Python packages:
+Clone the repository and install the required Python packages. Use the actual
+URL rather than the placeholder angle brackets:
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/Nurse-David/AI-Nurse_ScR_v6.git
 cd AI-Nurse_ScR_v6
 pip install -r requirements.txt
 ```
@@ -43,6 +44,29 @@ python -m ai_nurse_scr.cli extract --config config.yaml
 
 The current implementation is a placeholder and will print a message. It can be
 extended with real pipeline logic as needed.
+
+## Running in Google Colab
+When using Colab you may want project files to persist on Google Drive. The
+following snippet mounts Drive, creates a timestamped project folder and clones
+the repository there:
+
+```python
+from google.colab import drive
+from pathlib import Path
+import time
+
+drive.mount('/content/drive')
+timestamp = time.strftime('%y%m%d_%H%M')
+project_root = Path('/content/drive/My Drive/Pilot') / f'ScR_GitHub_v1_{timestamp}'
+project_root.mkdir(parents=True, exist_ok=True)
+%cd $project_root
+!git clone https://github.com/Nurse-David/AI-Nurse_ScR_v6.git
+%cd AI-Nurse_ScR_v6
+!pip install -r requirements.txt
+```
+
+Store your PDFs in `/content/drive/My Drive/Pilot/PDFs` and reference that
+directory when running the CLI or notebook.
 
 ## Demo Notebook
 For an interactive walkthrough open `Nurse_AI_ScR_v6_3.ipynb` in Jupyter or
