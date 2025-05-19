@@ -31,6 +31,14 @@ The repository ships with a helper module to simplify the Colab setup. The steps
 ```python
 !pip install -r requirements.txt
 ```
+See `config_example.yaml` for the minimal keys (`pdf_dir`, `run_id`) your configuration file must define. JSON files follow the same schema.
+
+Running this command executes the full extraction pipeline and writes a
+JSONL file of metadata to the configured output directory. Each run also
+creates a `config_snapshot.json` in the same directory capturing the loaded
+configuration along with the current package version and git commit hash.
+
+
 
 ### 3. Add your OpenAI key as a user secret
 1. Open **Settings → Manage user secrets** in the Colab menu.
