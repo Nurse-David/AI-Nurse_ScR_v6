@@ -1,0 +1,8 @@
+pymupdf==1.25.5
+pdfplumber==0.11.6
+pandas==2.2.2
+tqdm==4.67.1
+tiktoken==0.9.0
+openai==1.78.1
+requests==2.32.3
+pyyaml==6.0.2
