@@ -2,7 +2,10 @@ import hashlib
 import os
 import json
 import re
-import requests
+try:
+    import requests
+except Exception:  # pragma: no cover - optional dependency
+    requests = None
 
 
 def sha256_file(path):
@@ -32,6 +35,8 @@ def normalize_doi(x):
 
 def check_grobid_healthy(url="http://localhost:8070/api/isalive", timeout=8):
     """Check if the GROBID service is responding."""
+    if requests is None:
+        return False
     try:
         r = requests.get(url, timeout=timeout)
         return (r.status_code == 200) and ("grobid" in r.text.lower() or "true" in r.text.lower())
