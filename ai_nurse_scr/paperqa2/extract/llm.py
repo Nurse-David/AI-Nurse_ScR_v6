@@ -1,5 +1,11 @@
+from ... import extraction
+
 
 def extract_llm(data: dict) -> dict:
-    """Placeholder for LLM based extraction."""
-    # A language model could process the combined data
-    return {"llm_summary": "summary of the paper"}
+    """Use an LLM to fill missing metadata fields from the first page."""
+    text = data.get("raw_first_page", "")
+    try:
+        return extraction.extract_ai_llm_full(text)
+    except Exception:
+        return {k: "" for k in extraction.fields}
+
