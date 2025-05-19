@@ -86,3 +86,7 @@ Execute the unit test suite using ``unittest``:
 python -m unittest discover tests -v
 ```
 
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+
