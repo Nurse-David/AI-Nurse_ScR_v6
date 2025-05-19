@@ -1,3 +1,13 @@
+"""Utility functions for extracting metadata from a variety of sources.
+
+This module contains helper functions used throughout the project to
+retrieve or infer bibliographic data for a paper.  Metadata can be
+gathered from external APIs such as Crossref or OpenAlex, or inferred
+from the text of the first page of a document using an LLM.  The helpers
+return dictionaries keyed by a common set of fields defined in
+``fields``.
+"""
+
 import os
 import json
 from .utils import normalize_doi
@@ -16,10 +26,39 @@ llm_model = "gpt-4"
 
 
 def clean_str(txt: str) -> str:
+    """Return a simplified lowercase string containing only alphanumerics.
+
+    Parameters
+    ----------
+    txt : str
+        Input text which may contain punctuation or mixed case.
+
+    Returns
+    -------
+    str
+        Text normalised to lowercase with spaces and punctuation removed.
+    """
+
     return "".join(c for c in str(txt or "").lower() if c.isalnum() or c.isspace()).replace(" ", "")
 
 
 def approx_match(a: str, b: str, field: str) -> bool:
+    """Loosely compare two metadata values.
+
+    Parameters
+    ----------
+    a, b : str
+        Values to compare.
+    field : str
+        Name of the metadata field being compared.  ``"doi"`` and
+        ``"author_keywords"`` are treated specially.
+
+    Returns
+    -------
+    bool
+        ``True`` if the values are considered equivalent.
+    """
+
     if a is None or b is None:
         return False
     if field == "doi":
@@ -32,6 +71,21 @@ def approx_match(a: str, b: str, field: str) -> bool:
 
 
 def extract_crossref_full(doi: str, title: str | None = None) -> dict:
+    """Retrieve metadata from the Crossref API.
+
+    Parameters
+    ----------
+    doi : str
+        DOI of the paper.
+    title : str, optional
+        Title to query when a DOI is not supplied.
+
+    Returns
+    -------
+    dict
+        Dictionary populated with ``fields`` keys.
+    """
+
     meta = {f: "" for f in fields}
     try:
         url = f"https://api.crossref.org/works/{normalize_doi(doi)}" if doi else None
@@ -66,6 +120,21 @@ def extract_crossref_full(doi: str, title: str | None = None) -> dict:
 
 
 def extract_openalex_full(doi: str, title: str | None = None) -> dict:
+    """Retrieve metadata from the OpenAlex API.
+
+    Parameters
+    ----------
+    doi : str
+        DOI of the paper.
+    title : str, optional
+        Title used when a DOI lookup fails.
+
+    Returns
+    -------
+    dict
+        Dictionary populated with ``fields`` keys.
+    """
+
     meta = {f: "" for f in fields}
     try:
         url = (
@@ -105,6 +174,25 @@ def extract_openalex_full(doi: str, title: str | None = None) -> dict:
 
 
 def extract_ai_llm_doi_only(first_page: str, api_key: str | None = None, model: str | None = None) -> str:
+    """Extract a DOI from the first page text using an LLM.
+
+    Parameters
+    ----------
+    first_page : str
+        Text from the first page of the document.
+    api_key : str, optional
+        OpenAI API key. Defaults to the ``OPENAI_API_KEY`` environment
+        variable.
+    model : str, optional
+        LLM model name, default uses ``llm_model``.
+
+    Returns
+    -------
+    str
+        The extracted DOI, or an empty string if none is found or an
+        error occurs.
+    """
+
     api_key = api_key or OPENAI_API_KEY
     prompt = (
         "Extract only the DOI (Digital Object Identifier) from the following text. If none is found, return an empty JSON.\n"
@@ -132,6 +220,25 @@ def extract_ai_llm_doi_only(first_page: str, api_key: str | None = None, model: 
 
 
 def extract_ai_llm_full(first_page: str, api_key: str | None = None, model: str | None = None) -> dict:
+    """Infer metadata from page text using an LLM.
+
+    Parameters
+    ----------
+    first_page : str
+        Text from the first page of the document.
+    api_key : str, optional
+        OpenAI API key. Defaults to the ``OPENAI_API_KEY`` environment
+        variable.
+    model : str, optional
+        LLM model name, default uses ``llm_model``.
+
+    Returns
+    -------
+    dict
+        Dictionary of extracted metadata with ``fields`` keys.  Missing
+        or failed values are returned as empty strings.
+    """
+
     api_key = api_key or OPENAI_API_KEY
     prompt = (
         "Extract the following metadata as a JSON object from the text provided: title, author, year, doi, "

@@ -1,4 +1,7 @@
+"""Utility functions for computing pipeline metrics."""
+
 from __future__ import annotations
+
 from typing import Iterable, Tuple, List, Dict, Sequence
 from pathlib import Path
 import json, csv
@@ -46,7 +49,6 @@ def classification_metrics(true: Iterable[bool], pred: Iterable[bool]) -> Dict[s
         "f1": f1_score(tp, fp, fn),
         "accuracy": accuracy(tp, tn, fp, fn),
     }
-
 
 from pathlib import Path
 import json
