@@ -4,19 +4,19 @@ import unittest
 from pathlib import Path
 import sys
 
-from ai_nurse_scr import pipeline
+from ai_nurse_scr import pipeline, config as config_mod
 from unittest.mock import patch
 import types
 
 
 class TestPipelineHelpers(unittest.TestCase):
     def test_load_config(self):
-        with tempfile.NamedTemporaryFile('w+', suffix='.json', delete=False) as tf:
+        with tempfile.NamedTemporaryFile('w+', suffix='.json') as tf:
             json.dump({'pdf_dir': 'data', 'run_id': 'run1'}, tf)
             tf.flush()
-            cfg = pipeline.load_config(tf.name)
-            self.assertEqual(cfg['pdf_dir'], 'data')
-            self.assertEqual(cfg['run_id'], 'run1')
+            cfg = config_mod.load_config(tf.name)
+            self.assertEqual(cfg.pdf_dir, 'data')
+            self.assertEqual(cfg.run_id, 'run1')
 
     def test_find_pdfs(self):
         with tempfile.TemporaryDirectory() as td:
@@ -70,6 +70,42 @@ class TestPipelineHelpers(unittest.TestCase):
             pipeline.run(cfg.name, td)
             out = Path(td) / 'run_metadata.jsonl'
             self.assertTrue(out.exists())
+            
+            metrics_dir = Path('outputs/metrics')
+            summary = metrics_dir / 'summary.csv'
+            self.assertTrue(summary.exists())
+            snapshot = Path(td) / 'config_snapshot.yaml'
+            self.assertTrue(snapshot.exists())
+            with open(snapshot) as sf:
+                snap = json.load(sf)
+            self.assertEqual(snap['config']['run_id'], 'run')
+            self.assertIn('version', snap)
+            self.assertIn('commit', snap)
+
+    @patch("ai_nurse_scr.pipeline.ask_llm")
+    @patch("ai_nurse_scr.pipeline.extract_text")
+    def test_run_rounds_outputs(self, mock_text, mock_llm):
+        mock_text.return_value = "content" * 5
+        mock_llm.return_value = "answer"
+        with tempfile.TemporaryDirectory() as td, tempfile.NamedTemporaryFile('w+', suffix='.json') as cfg:
+            json.dump({
+                'pdf_dir': td,
+                'run_id': 'run',
+                'output_dir': td,
+                'rounds': {
+                    'question': 'Q?',
+                    'chunk_size': 5,
+                    'round1': {'top_n': 1, 'temperature': 0.5},
+                    'round2': {'temperature': 0}
+                }
+            }, cfg)
+            cfg.flush()
+            Path(td, 'doc.pdf').touch()
+            pipeline.run_rounds(cfg.name, td)
+            out1 = Path(td) / 'run_round1.jsonl'
+            out2 = Path(td) / 'run_round2.jsonl'
+            self.assertTrue(out1.exists())
+            self.assertTrue(out2.exists())
 
     @patch("ai_nurse_scr.pipeline.extract_data")
     @patch("ai_nurse_scr.pipeline.extract_text")
