@@ -26,6 +26,8 @@ URL rather than the placeholder angle brackets:
 git clone https://github.com/Nurse-David/AI-Nurse_ScR_v6.git
 cd AI-Nurse_ScR_v6
 pip install -r requirements.txt
+# Set your OpenAI API key so extraction functions can call the API
+export OPENAI_API_KEY=<your-api-key>
 ```
 
 ## Running the CLI
@@ -46,12 +48,13 @@ The current implementation is a placeholder and will print a message. It can be
 extended with real pipeline logic as needed.
 
 ## Running in Google Colab
-When using Colab you may want project files to persist on Google Drive. The
-following snippet mounts Drive, creates a timestamped project folder and clones
-the repository there:
+When using Colab you may want project files to persist on Google Drive.
+Store your OpenAI key as a Colab secret named `OPENAI_API_KEY`. The snippet
+below mounts Drive, creates a timestamped project folder, clones the repository
+and loads the secret:
 
 ```python
-from google.colab import drive
+from google.colab import drive, userdata
 from pathlib import Path
 import time
 
@@ -63,6 +66,9 @@ project_root.mkdir(parents=True, exist_ok=True)
 !git clone https://github.com/Nurse-David/AI-Nurse_ScR_v6.git
 %cd AI-Nurse_ScR_v6
 !pip install -r requirements.txt
+# Retrieve your key from Colab secrets and expose it as an env variable
+import os
+os.environ["OPENAI_API_KEY"] = userdata.get('OPENAI_API_KEY')
 ```
 
 Store your PDFs in `/content/drive/My Drive/Pilot/PDFs` and reference that
