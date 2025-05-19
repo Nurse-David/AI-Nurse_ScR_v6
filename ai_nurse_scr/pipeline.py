@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from . import extraction
 
 
 def load_config(path: str) -> dict:
@@ -14,15 +15,29 @@ def find_pdfs(directory: str):
 
 
 def extract_text(pdf_path: Path) -> str:
-    """Placeholder to extract text from a PDF file."""
-    print(f"[INFO] Extracting text from {pdf_path}")
-    return ""
+    """Return all text from a PDF using ``pdfplumber``."""
+    try:
+        import pdfplumber
+    except Exception:
+        return ""
+    try:
+        with pdfplumber.open(pdf_path) as pdf:
+            return "\n".join(page.extract_text() or "" for page in pdf.pages)
+    except Exception:
+        return ""
 
 
 def extract_data(text: str) -> dict:
-    """Placeholder to extract structured data from text."""
-    print("[INFO] Extracting data from text")
-    return {}
+    """Extract structured metadata from paper text."""
+    first_chunk = text[:4000]
+    meta = extraction.extract_ai_llm_full(first_chunk)
+    doi = meta.get("doi", "")
+    if doi:
+        cr = extraction.extract_crossref_full(doi, meta.get("title"))
+        meta.update({k: v for k, v in cr.items() if v})
+        oa = extraction.extract_openalex_full(doi, meta.get("title"))
+        meta.update({k: v for k, v in oa.items() if v})
+    return meta
 
 
 def run(config_path: str, pdf_dir: str) -> None:
@@ -34,9 +49,18 @@ def run(config_path: str, pdf_dir: str) -> None:
     if not pdfs:
         print(f"[WARNING] No PDF files found in {pdf_dir}")
 
+    results = []
     for pdf in pdfs:
         text = extract_text(pdf)
         data = extract_data(text)
-        # Insert actual processing logic here using `data` and `config`
+        data["pdf_path"] = str(pdf)
+        results.append(data)
+
+    out_dir = Path(config.get("output_dir", "output"))
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_file = out_dir / f"{config.get('run_id', 'run')}_metadata.jsonl"
+    with open(out_file, "w", encoding="utf-8") as f:
+        for row in results:
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
     print("[INFO] Pipeline completed")

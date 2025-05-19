@@ -19,8 +19,8 @@ notebooks remain in this repository for reference.
 The CLI orchestrates these steps to provide a deterministic, repeatable run.
 
 ## Installation
-Clone the repository and install the required Python packages. Use the actual
-URL rather than the placeholder angle brackets:
+Clone the repository and install the required Python packages using the real
+GitHub URL:
 
 ```bash
 git clone https://github.com/Nurse-David/AI-Nurse_ScR_v6.git
@@ -47,8 +47,8 @@ python -m ai_nurse_scr.cli extract --config config.yaml
 ```
 See `config_example.yaml` for the minimal keys (`pdf_dir`, `run_id`) your configuration file must define.
 
-The current implementation is a placeholder and will print a message. It can be
-extended with real pipeline logic as needed.
+Running this command executes the full extraction pipeline and writes a
+JSONL file of metadata to the configured output directory.
 
 ## Running in Google Colab
 When using Colab you may want project files to persist on Google Drive.
@@ -106,4 +106,5 @@ python -m unittest discover tests -v
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
+
 

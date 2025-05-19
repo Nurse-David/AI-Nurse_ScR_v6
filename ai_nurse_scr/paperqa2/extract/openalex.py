@@ -1,4 +1,10 @@
+from ... import extraction
+
 
 def extract_openalex(doi: str) -> dict:
-    """Placeholder for OpenAlex metadata retrieval."""
-    return {"openalex": f"metadata for {doi}"}
+    """Retrieve OpenAlex metadata for a DOI."""
+    try:
+        return extraction.extract_openalex_full(doi)
+    except Exception:
+        return {k: "" for k in extraction.fields}
+
