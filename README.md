@@ -20,4 +20,3 @@ This installs all required packages found in `requirements.txt`.
 - `Nurse_AI_ScR_v6_3.ipynb`
 
 Run the notebooks in your preferred environment (e.g., VS Code, Jupyter Lab, or Google Colab) after activating the virtual environment.
-
