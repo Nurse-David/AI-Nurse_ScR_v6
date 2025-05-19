@@ -1,6 +1,8 @@
 import json
+import subprocess
 from pathlib import Path
-from . import extraction
+
+from . import extraction, __version__
 
 
 def load_config(path: str) -> dict:
@@ -58,6 +60,21 @@ def run(config_path: str, pdf_dir: str) -> None:
 
     out_dir = Path(config.get("output_dir", "output"))
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    snapshot = {"config": config, "version": __version__}
+    try:
+        commit = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            cwd=Path(__file__).resolve().parent.parent,
+            text=True,
+        ).strip()
+    except Exception:
+        commit = "unknown"
+    snapshot["commit"] = commit
+
+    with open(out_dir / "config_snapshot.yaml", "w", encoding="utf-8") as f:
+        json.dump(snapshot, f, ensure_ascii=False, indent=2)
+
     out_file = out_dir / f"{config.get('run_id', 'run')}_metadata.jsonl"
     with open(out_file, "w", encoding="utf-8") as f:
         for row in results:

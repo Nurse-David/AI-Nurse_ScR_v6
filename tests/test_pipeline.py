@@ -70,6 +70,13 @@ class TestPipelineHelpers(unittest.TestCase):
             pipeline.run(cfg.name, td)
             out = Path(td) / 'run_metadata.jsonl'
             self.assertTrue(out.exists())
+            snapshot = Path(td) / 'config_snapshot.yaml'
+            self.assertTrue(snapshot.exists())
+            with open(snapshot) as sf:
+                snap = json.load(sf)
+            self.assertEqual(snap['config']['run_id'], 'run')
+            self.assertIn('version', snap)
+            self.assertIn('commit', snap)
 
 
 if __name__ == '__main__':

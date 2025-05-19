@@ -48,7 +48,9 @@ python -m ai_nurse_scr.cli extract --config config.yaml
 See `config_example.yaml` for the minimal keys (`pdf_dir`, `run_id`) your configuration file must define.
 
 Running this command executes the full extraction pipeline and writes a
-JSONL file of metadata to the configured output directory.
+JSONL file of metadata to the configured output directory. Each run also
+creates a `config_snapshot.yaml` in the same directory capturing the loaded
+configuration along with the current package version and git commit hash.
 
 ## Running in Google Colab
 When using Colab you may want project files to persist on Google Drive.
