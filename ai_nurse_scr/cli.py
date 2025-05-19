@@ -19,12 +19,26 @@ def main(argv=None):
         "--pdf-dir", help="Directory containing PDF files", required=True
     )
 
+    qa = subparsers.add_parser(
+        "qa", help="Run sequential QA rounds on PDF files"
+    )
+    qa.add_argument(
+        "--config", help="Path to a YAML/JSON configuration file", required=True
+    )
+    qa.add_argument(
+        "--pdf-dir", help="Directory containing PDF files", required=True
+    )
+
     args = parser.parse_args(argv)
 
     if args.command == "extract":
         setup.install_dependencies()
         setup.prepare_environment()
         pipeline.run(args.config, args.pdf_dir)
+    elif args.command == "qa":
+        setup.install_dependencies()
+        setup.prepare_environment()
+        pipeline.run_rounds(args.config, args.pdf_dir)
 
 
 if __name__ == "__main__":

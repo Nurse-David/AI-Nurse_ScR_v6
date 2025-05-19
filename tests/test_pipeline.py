@@ -71,6 +71,31 @@ class TestPipelineHelpers(unittest.TestCase):
             out = Path(td) / 'run_metadata.jsonl'
             self.assertTrue(out.exists())
 
+    @patch("ai_nurse_scr.pipeline.ask_llm")
+    @patch("ai_nurse_scr.pipeline.extract_text")
+    def test_run_rounds_outputs(self, mock_text, mock_llm):
+        mock_text.return_value = "content" * 5
+        mock_llm.return_value = "answer"
+        with tempfile.TemporaryDirectory() as td, tempfile.NamedTemporaryFile('w+', suffix='.json') as cfg:
+            json.dump({
+                'pdf_dir': td,
+                'run_id': 'run',
+                'output_dir': td,
+                'rounds': {
+                    'question': 'Q?',
+                    'chunk_size': 5,
+                    'round1': {'top_n': 1, 'temperature': 0.5},
+                    'round2': {'temperature': 0}
+                }
+            }, cfg)
+            cfg.flush()
+            Path(td, 'doc.pdf').touch()
+            pipeline.run_rounds(cfg.name, td)
+            out1 = Path(td) / 'run_round1.jsonl'
+            out2 = Path(td) / 'run_round2.jsonl'
+            self.assertTrue(out1.exists())
+            self.assertTrue(out2.exists())
+
 
 if __name__ == '__main__':
     unittest.main()
