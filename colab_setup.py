@@ -55,7 +55,7 @@ def setup(base_dir: str = "My Drive/Pilot", project_prefix: str = "ScR_GitHub_v1
     project_root.mkdir(parents=True, exist_ok=True)
     os.chdir(project_root)
 
-    pdf_dir = project_root / "PDFs"
+    pdf_dir = mount_path / base_dir / "PDFs"
     pdf_dir.mkdir(parents=True, exist_ok=True)
 
     try:
