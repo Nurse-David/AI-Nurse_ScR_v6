@@ -1,6 +1,6 @@
 import hashlib
-import re
 from pathlib import Path
+from ..utils import normalize_doi
 
 
 def sha256_file(path: str | Path) -> str:
@@ -12,9 +12,3 @@ def sha256_file(path: str | Path) -> str:
     return h.hexdigest()
 
 
-def normalize_doi(doi: str) -> str:
-    """Normalize a DOI string by removing URL prefixes and whitespace."""
-    doi = doi.strip()
-    doi = doi.lower()
-    doi = re.sub(r'^https?://(dx\.)?doi\.org/', '', doi)
-    return doi
