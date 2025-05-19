@@ -6,9 +6,7 @@ import tempfile
 from dataclasses import asdict
 from typing import List
 
-from . import extraction, config, metrics
-
-from . import extraction, __version__
+from . import extraction, config, metrics, __version__
 
 
 
