@@ -45,7 +45,7 @@ configuration along with the current package version and git commit hash.
 2. Add a secret named `OPENAI_API_KEY` containing your key.
 
 ### 4. Mount Drive and create folders
-Use `colab_setup.setup()` to mount Google Drive (if running in Colab) and create a timestamped project directory with a `PDFs` folder. The function also loads the secret `OPENAI_API_KEY` into the environment for you.
+Use `colab_setup.setup()` to mount Google Drive (if running in Colab) and create a timestamped project directory. The `PDFs` folder is now placed directly under the `Pilot` directory. The function also loads the secret `OPENAI_API_KEY` into the environment for you.
 
 ```python
 import colab_setup
