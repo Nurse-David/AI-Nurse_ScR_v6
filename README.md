@@ -41,6 +41,7 @@ A typical extraction run might look like:
 ```bash
 python -m ai_nurse_scr.cli extract --config config.yaml
 ```
+See `config_example.yaml` for the minimal keys (`pdf_dir`, `run_id`) your configuration file must define.
 
 The current implementation is a placeholder and will print a message. It can be
 extended with real pipeline logic as needed.
