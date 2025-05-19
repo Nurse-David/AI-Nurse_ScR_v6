@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from .utils import sha256_file, normalize_doi
+from ..utils import sha256_file, normalize_doi
 from .extract.grobid import extract_grobid
 from .extract.pdfmeta import extract_pdfmeta
 from .extract.crossref import extract_crossref

@@ -2,17 +2,21 @@ import hashlib
 import os
 import json
 import re
+from pathlib import Path
 try:
     import requests
 except Exception:  # pragma: no cover - optional dependency
     requests = None
 
 
-def sha256_file(path):
-    """Return SHA-256 hex digest of a file or None on error."""
+def sha256_file(path: str | os.PathLike | Path) -> str | None:
+    """Return SHA-256 hex digest of a file or ``None`` if unreadable."""
+    h = hashlib.sha256()
     try:
         with open(path, "rb") as f:
-            return hashlib.sha256(f.read()).hexdigest()
+            for chunk in iter(lambda: f.read(8192), b""):
+                h.update(chunk)
+        return h.hexdigest()
     except Exception:
         return None
 
