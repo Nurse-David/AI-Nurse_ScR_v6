@@ -63,6 +63,9 @@ project_root.mkdir(parents=True, exist_ok=True)
 !git clone https://github.com/Nurse-David/AI-Nurse_ScR_v6.git
 %cd AI-Nurse_ScR_v6
 !pip install -r requirements.txt
+
+pdf_root = Path('/content/drive/My Drive/Pilot/PDFs')
+pdf_root.mkdir(parents=True, exist_ok=True)
 ```
 
 Store your PDFs in `/content/drive/My Drive/Pilot/PDFs` and reference that
