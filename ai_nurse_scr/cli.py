@@ -55,7 +55,12 @@ def main(argv=None):
     if args.command == "extract":
         setup.install_dependencies()
         setup.prepare_environment()
-        pipeline.run(args.config, args.pdf_dir)
+        cfg = pipeline.load_config(args.config)
+        runs = int(getattr(cfg, "num_runs", 1))
+        if runs > 1:
+            pipeline.run_multiple(args.config, args.pdf_dir, runs)
+        else:
+            pipeline.run(args.config, args.pdf_dir)
 
     elif args.command == "qa":
         setup.install_dependencies()

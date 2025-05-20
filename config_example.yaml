@@ -1,5 +1,11 @@
 pdf_dir: path/to/pdfs
 run_id: example_run
+llm_model: gpt-4
+embedding_model: text-embedding-3-large
+num_runs: 1
+questions:
+  - slug: patient_outcomes
+    text: "How can AI technologies be utilised to enhance patient outcomes in nursing?"
 output_dir: output
 rounds:
   question: "Summarize the paper"
