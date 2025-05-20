@@ -30,10 +30,12 @@ The repository ships with a helper module to simplify the Colab setup. The steps
 %cd AI-Nurse_ScR_v6
 ```
 
-### 2. Install Python dependencies
+### 2. Install Python dependencies and the package
 ```python
 !pip install -r requirements.txt
+!pip install -e .
 ```
+Installing the package in editable mode ensures that `python -m ai_nurse_scr.cli` works even after `colab_setup.setup()` changes the working directory.
 See `config_example.yaml` for the available configuration fields. At minimum you must set `pdf_dir` and `run_id`. Additional keys such as `llm_model`, `embedding_model`, `num_runs` and `questions` allow further customisation.
 
 Running this command executes the full extraction pipeline and writes a
