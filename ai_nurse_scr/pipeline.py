@@ -1,14 +1,18 @@
+from __future__ import annotations
+
 import json
 import subprocess
-from pathlib import Path
 import tempfile
-
+from pathlib import Path
 from dataclasses import asdict
-from typing import List
+from typing import List, Callable, Dict
 
 from . import extraction, config, metrics, __version__
 
 
+# ---------------------------------------------------------------------------
+# Helper utilities
+# ---------------------------------------------------------------------------
 
 def load_config(path: str) -> config.Config:
     """Load configuration using :func:`ai_nurse_scr.config.load_config`."""
@@ -17,14 +21,14 @@ def load_config(path: str) -> config.Config:
 
 def find_pdfs(directory: str):
     """Yield PDF files within the directory."""
-    return sorted(Path(directory).glob('*.pdf'))
+    return sorted(Path(directory).glob("*.pdf"))
 
 
 def extract_text(pdf_path: Path) -> str:
     """Return all text from a PDF using ``pdfplumber``."""
-    try:
+    try:  # pragma: no cover - optional dependency
         import pdfplumber
-    except Exception:
+    except Exception:  # pragma: no cover - pdfplumber missing
         return ""
     try:
         with pdfplumber.open(pdf_path) as pdf:
@@ -34,11 +38,7 @@ def extract_text(pdf_path: Path) -> str:
 
 
 def extract_data(text: str, model: str = "gpt-4") -> dict:
-    """Extract structured metadata from paper text.
-
-    The first step uses an LLM to infer metadata from the initial page
-    text before querying external services for enrichment.
-    """
+    """Extract structured metadata from paper text."""
     first_chunk = text[:4000]
     meta = extraction.extract_ai_llm_full(first_chunk, model=model)
     doi = meta.get("doi", "")
@@ -50,16 +50,14 @@ def extract_data(text: str, model: str = "gpt-4") -> dict:
     return meta
 
 
-def run(config_path: str, pdf_dir: str) -> None:
-    """Run the pipeline sequentially using the given configuration and PDF directory."""
-    cfg = config.load_config(config_path)
-    print(f"[INFO] Loaded config from {config_path}")
+# ---------------------------------------------------------------------------
+# Pipeline stage implementations
+# ---------------------------------------------------------------------------
 
+def run_metadata(config_path: str, pdf_dir: str) -> Path:
+    """Extract metadata from PDFs and write ``*_metadata.jsonl`` output."""
+    cfg = load_config(config_path)
     pdfs = find_pdfs(pdf_dir)
-    if not pdfs:
-        print(f"[WARNING] No PDF files found in {pdf_dir}")
-
-
     chunk_size = int(cfg.extra.get("chunk_size", 200))
 
     all_chunks: list[list[str]] = []
@@ -75,36 +73,28 @@ def run(config_path: str, pdf_dir: str) -> None:
 
     out_dir = Path(cfg.extra.get("output_dir", "output"))
     out_dir.mkdir(parents=True, exist_ok=True)
-   
 
     snapshot = {"config": asdict(cfg), "version": __version__}
-
     try:
         commit = subprocess.check_output(
             ["git", "rev-parse", "HEAD"],
             cwd=Path(__file__).resolve().parent.parent,
             text=True,
         ).strip()
-    except Exception:
+    except Exception:  # pragma: no cover - git not available
         commit = "unknown"
     snapshot["commit"] = commit
 
-    # Store a snapshot of the loaded configuration for reproducibility
-    # Use a JSON extension to match the file contents
     with open(out_dir / "config_snapshot.json", "w", encoding="utf-8") as f:
         json.dump(snapshot, f, ensure_ascii=False, indent=2)
 
-        
     out_file = out_dir / f"{cfg.run_id}_metadata.jsonl"
-
-    
     with open(out_file, "w", encoding="utf-8") as f:
         for row in results:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
     stats = metrics.chunk_statistics(all_chunks)
     metrics.write_metrics(
-
         cfg.run_id,
         "tokenization",
         stats,
@@ -137,47 +127,33 @@ def run(config_path: str, pdf_dir: str) -> None:
             cfg.extra.get("metrics_dir", "outputs/metrics"),
         )
 
-    print("[INFO] Pipeline completed")
+    print("✔ Stage metadata completed")
+    return out_file
 
 
-def run_multiple(config_path: str, pdf_dir: str, rounds: int) -> list[Path]:
-    """Run the pipeline multiple times returning output file paths."""
-    base_cfg = config.load_config(config_path)
-    outputs: list[Path] = []
-    for i in range(1, rounds + 1):
-        run_id = f"{base_cfg.run_id}_round{i}"
-        cfg = {
-            "pdf_dir": base_cfg.pdf_dir,
-            "run_id": run_id,
-            **base_cfg.extra,
-        }
-        with tempfile.NamedTemporaryFile("w+", suffix=".json", delete=False) as tmp:
-            json.dump(cfg, tmp)
-            tmp.flush()
-            run(tmp.name, pdf_dir)
-        out_dir = Path(cfg.get("output_dir", "output"))
-        outputs.append(out_dir / f"{run_id}_metadata.jsonl")
-    return outputs
-  
+def run_chunking(config_path: str, pdf_dir: str) -> Path:
+    """Chunk PDF texts and write ``*_chunks.jsonl`` output."""
+    cfg = load_config(config_path)
+    pdfs = find_pdfs(pdf_dir)
+    chunk_size = int(cfg.extra.get("chunk_size", 200))
+    out_dir = Path(cfg.extra.get("output_dir", "output"))
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    out_file = out_dir / f"{cfg.run_id}_chunks.jsonl"
+    with open(out_file, "w", encoding="utf-8") as f:
+        for pdf in pdfs:
+            text = extract_text(pdf)
+            tokens = metrics.simple_tokenize(text)
+            for idx, chunk in enumerate(metrics.make_chunks(tokens, chunk_size)):
+                rec = {"pdf_path": str(pdf), "chunk_index": idx, "tokens": chunk}
+                f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+
+    print("✔ Stage chunking completed")
+    return out_file
+
+
 def ask_llm(text: str, question: str, temperature: float = 0.0, model: str = "gpt-4") -> str:
-    """Query an LLM with the provided question and context text.
-
-    Parameters
-    ----------
-    text:
-        Context text to provide the model.
-    question:
-        Prompt or question for the model.
-    temperature:
-        Sampling temperature for the LLM.
-    model:
-        Chat model to use.
-
-    Returns
-    -------
-    str
-        The model response as plain text. On error an empty string is returned.
-    """
+    """Query an LLM with the provided question and context text."""
     try:  # pragma: no cover - network calls are mocked in tests
         import openai
 
@@ -197,48 +173,143 @@ def _chunk_text(text: str, size: int) -> List[str]:
     return [text[i : i + size] for i in range(0, len(text), size)] or [text]
 
 
-def run_rounds(config_path: str, pdf_dir: str) -> None:
-    """Run sequential QA rounds over the provided PDFs.
-
-    The configuration file must define a ``rounds`` section with at least a
-    ``question`` value. ``round1`` and ``round2`` subsections control the number
-    of chunks aggregated and sampling temperature respectively.
-    """
-    cfg = config.load_config(config_path)
+def run_round1(config_path: str, pdf_dir: str) -> Path:
+    """Run QA round 1 over the PDFs."""
+    cfg = load_config(config_path)
     rounds_cfg = cfg.extra.get("rounds", {})
     question = rounds_cfg.get("question", "")
     chunk_size = int(rounds_cfg.get("chunk_size", 2000))
     r1 = rounds_cfg.get("round1", {})
+
+    model = cfg.llm_model
+    pdfs = find_pdfs(pdf_dir)
+    out_dir = Path(cfg.extra.get("output_dir", "output"))
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_file = out_dir / f"{cfg.run_id}_round1.jsonl"
+
+    with open(out_file, "w", encoding="utf-8") as f1:
+        for pdf in pdfs:
+            text = extract_text(pdf)
+            chunks = _chunk_text(text, chunk_size)
+            top_n = int(r1.get("top_n", len(chunks)))
+            ctx = " ".join(chunks[:top_n])
+            ans1 = ask_llm(ctx, question, float(r1.get("temperature", 0.0)), model=model)
+            f1.write(json.dumps({"pdf_path": str(pdf), "answer": ans1}) + "\n")
+
+    print("✔ Stage round1 completed")
+    return out_file
+
+
+def run_round2(config_path: str, pdf_dir: str) -> Path:
+    """Run QA round 2 on individual chunks."""
+    cfg = load_config(config_path)
+    rounds_cfg = cfg.extra.get("rounds", {})
+    question = rounds_cfg.get("question", "")
+    chunk_size = int(rounds_cfg.get("chunk_size", 2000))
     r2 = rounds_cfg.get("round2", {})
 
     model = cfg.llm_model
     pdfs = find_pdfs(pdf_dir)
     out_dir = Path(cfg.extra.get("output_dir", "output"))
     out_dir.mkdir(parents=True, exist_ok=True)
-    out1 = out_dir / f"{cfg.run_id}_round1.jsonl"
-    out2 = out_dir / f"{cfg.run_id}_round2.jsonl"
+    out_file = out_dir / f"{cfg.run_id}_round2.jsonl"
 
-    with open(out1, "w", encoding="utf-8") as f1, open(out2, "w", encoding="utf-8") as f2:
+    with open(out_file, "w", encoding="utf-8") as f2:
         for pdf in pdfs:
             text = extract_text(pdf)
             chunks = _chunk_text(text, chunk_size)
-
-            # round 1 - aggregate larger context
-            top_n = int(r1.get("top_n", len(chunks)))
-            ctx = " ".join(chunks[:top_n])
-            ans1 = ask_llm(
-                ctx,
-                question,
-                float(r1.get("temperature", 0.0)),
-                model=model,
-            )
-            f1.write(json.dumps({"pdf_path": str(pdf), "answer": ans1}) + "\n")
-
-            # round 2 - individual chunks
             temp2 = float(r2.get("temperature", 0.0))
             for idx, chunk in enumerate(chunks):
                 ans2 = ask_llm(chunk, question, temp2, model=model)
                 rec = {"pdf_path": str(pdf), "chunk_index": idx, "answer": ans2}
                 f2.write(json.dumps(rec) + "\n")
 
+    print("✔ Stage round2 completed")
+    return out_file
+
+
+def run_round3(config_path: str, pdf_dir: str) -> Path:
+    """Placeholder for QA round 3 synthesis."""
+    cfg = load_config(config_path)
+    out_dir = Path(cfg.extra.get("output_dir", "output"))
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_file = out_dir / f"{cfg.run_id}_round3.jsonl"
+    out_file.write_text("")
+    print("✔ Stage round3 completed")
+    return out_file
+
+
+def run_synthesis(config_path: str, pdf_dir: str) -> Path:
+    """Placeholder for final synthesis stage."""
+    cfg = load_config(config_path)
+    out_dir = Path(cfg.extra.get("output_dir", "output"))
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_file = out_dir / f"{cfg.run_id}_synthesis.jsonl"
+    out_file.write_text("")
+    print("✔ Stage synthesis completed")
+    return out_file
+
+
+# ---------------------------------------------------------------------------
+# Orchestration helpers
+# ---------------------------------------------------------------------------
+
+STAGES: Dict[str, Callable[[str, str], Path]] = {
+    "metadata": run_metadata,
+    "chunking": run_chunking,
+    "round1": run_round1,
+    "round2": run_round2,
+    "round3": run_round3,
+    "synthesis": run_synthesis,
+}
+
+
+def run(
+    config_path: str,
+    pdf_dir: str,
+    *,
+    start: str = "metadata",
+    stop: str = "synthesis",
+    force: bool = False,
+) -> None:
+    """Run pipeline stages from ``start`` to ``stop`` inclusive."""
+
+    stage_names = list(STAGES.keys())
+    if start not in STAGES or stop not in STAGES:
+        raise ValueError("Unknown stage name")
+    start_idx = stage_names.index(start)
+    stop_idx = stage_names.index(stop)
+    if start_idx > stop_idx:
+        raise ValueError("start must be before stop")
+
+    for name in stage_names[start_idx : stop_idx + 1]:
+        STAGES[name](config_path, pdf_dir)
+
+    print("[INFO] Pipeline completed")
+
+
+def run_multiple(config_path: str, pdf_dir: str, rounds: int) -> list[Path]:
+    """Run the pipeline multiple times returning output file paths."""
+    base_cfg = load_config(config_path)
+    outputs: list[Path] = []
+    for i in range(1, rounds + 1):
+        run_id = f"{base_cfg.run_id}_round{i}"
+        cfg = {
+            "pdf_dir": base_cfg.pdf_dir,
+            "run_id": run_id,
+            **base_cfg.extra,
+        }
+        with tempfile.NamedTemporaryFile("w+", suffix=".json", delete=False) as tmp:
+            json.dump(cfg, tmp)
+            tmp.flush()
+            run(tmp.name, pdf_dir)
+        out_dir = Path(cfg.get("output_dir", "output"))
+        outputs.append(out_dir / f"{run_id}_metadata.jsonl")
+    return outputs
+
+
+def run_rounds(config_path: str, pdf_dir: str) -> None:
+    """Compat wrapper that executes round 1 and round 2."""
+    run_round1(config_path, pdf_dir)
+    run_round2(config_path, pdf_dir)
     print("[INFO] QA rounds completed")
