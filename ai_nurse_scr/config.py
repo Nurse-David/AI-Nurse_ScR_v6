@@ -23,6 +23,7 @@ class Config:
     embedding_model: str = "text-embedding-3-large"
     num_runs: int = 1
     questions: list[Any] = field(default_factory=list)
+    project_root: str | None = None
     extra: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -77,6 +78,7 @@ def load_config(path: str, required_keys: Optional[Iterable[str]] = None) -> Con
     embedding_model = data.pop("embedding_model", "text-embedding-3-large")
     num_runs = int(data.pop("num_runs", 1))
     questions = data.pop("questions", [])
+    project_root = data.pop("project_root", None)
     return Config(
         pdf_dir=pdf_dir,
         run_id=run_id,
@@ -84,5 +86,6 @@ def load_config(path: str, required_keys: Optional[Iterable[str]] = None) -> Con
         embedding_model=embedding_model,
         num_runs=num_runs,
         questions=questions,
+        project_root=project_root,
         extra=data,
     )

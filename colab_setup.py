@@ -27,6 +27,18 @@ def mount_drive() -> Path:
     return mount_path
 
 
+def auto_mount_drive() -> Path | None:
+    """Mount Google Drive when running in Colab and not already mounted."""
+    if not in_colab():
+        return None
+    mount_path = Path("/content/drive")
+    if mount_path.exists() and any(mount_path.iterdir()):
+        return mount_path
+    from google.colab import drive  # type: ignore
+    drive.mount(str(mount_path))
+    return mount_path
+
+
 def setup(base_dir: str = "My Drive/Pilot", project_prefix: str = "ScR_GitHub_v1") -> tuple[Path, Path]:
     """Mount Drive and create project directories under ``base_dir``.
 

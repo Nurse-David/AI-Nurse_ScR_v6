@@ -1,12 +1,18 @@
 import json
 import subprocess
+import time
 from pathlib import Path
 import tempfile
+try:
+    import yaml
+except Exception:  # pragma: no cover - optional dependency
+    yaml = None
 
 from dataclasses import asdict
 from typing import List
 
-from . import extraction, config, metrics, __version__
+from . import extraction, config, metrics, __version__, __git_hash__
+from . import paths
 
 
 
@@ -50,15 +56,23 @@ def extract_data(text: str, model: str = "gpt-4") -> dict:
     return meta
 
 
-def run(config_path: str, pdf_dir: str) -> None:
+def run(config_path: str, pdf_dir: str, force: bool = False) -> Path | None:
     """Run the pipeline sequentially using the given configuration and PDF directory."""
     cfg = config.load_config(config_path)
     print(f"[INFO] Loaded config from {config_path}")
 
+    paths.set_project_root(Path(cfg.project_root) if cfg.project_root else paths.default_project_root())
+    out_dir = paths.get_path(cfg.extra.get("output_dir", "output"))
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    existing = list(out_dir.glob(f"{cfg.run_id}_metadata_*.jsonl"))
+    if existing and not force:
+        print("⏩ Skipping metadata (outputs present)")
+        return existing[0]
+
     pdfs = find_pdfs(pdf_dir)
     if not pdfs:
         print(f"[WARNING] No PDF files found in {pdf_dir}")
-
 
     chunk_size = int(cfg.extra.get("chunk_size", 200))
 
@@ -73,11 +87,7 @@ def run(config_path: str, pdf_dir: str) -> None:
         data["pdf_path"] = str(pdf)
         results.append(data)
 
-    out_dir = Path(cfg.extra.get("output_dir", "output"))
-    out_dir.mkdir(parents=True, exist_ok=True)
-   
-
-    snapshot = {"config": asdict(cfg), "version": __version__}
+    snapshot = asdict(cfg)
 
     try:
         commit = subprocess.check_output(
@@ -89,13 +99,27 @@ def run(config_path: str, pdf_dir: str) -> None:
         commit = "unknown"
     snapshot["commit"] = commit
 
-    # Store a snapshot of the loaded configuration for reproducibility
-    # Use a JSON extension to match the file contents
-    with open(out_dir / "config_snapshot.json", "w", encoding="utf-8") as f:
-        json.dump(snapshot, f, ensure_ascii=False, indent=2)
+    snapshot_file = out_dir / "config_snapshot.yaml"
+    with open(snapshot_file, "w", encoding="utf-8") as f:
+        if yaml:
+            yaml.safe_dump(snapshot, f, sort_keys=False)
+        else:
+            json.dump(snapshot, f, ensure_ascii=False, indent=2)
+
+    run_info = {
+        "run_id": cfg.run_id,
+        "pipeline_version": __version__,
+        "git_hash": __git_hash__,
+        "timestamp": time.strftime("%Y%m%d_%H%M"),
+    }
+    with open(out_dir / "run_info.yaml", "w", encoding="utf-8") as f:
+        if yaml:
+            yaml.safe_dump(run_info, f, sort_keys=False)
+        else:
+            json.dump(run_info, f, ensure_ascii=False, indent=2)
 
         
-    out_file = out_dir / f"{cfg.run_id}_metadata.jsonl"
+    out_file = out_dir / paths.timestamped_filename(f"{cfg.run_id}_metadata")
 
     
     with open(out_file, "w", encoding="utf-8") as f:
@@ -138,6 +162,7 @@ def run(config_path: str, pdf_dir: str) -> None:
         )
 
     print("[INFO] Pipeline completed")
+    return out_file
 
 
 def run_multiple(config_path: str, pdf_dir: str, rounds: int) -> list[Path]:
@@ -154,9 +179,7 @@ def run_multiple(config_path: str, pdf_dir: str, rounds: int) -> list[Path]:
         with tempfile.NamedTemporaryFile("w+", suffix=".json", delete=False) as tmp:
             json.dump(cfg, tmp)
             tmp.flush()
-            run(tmp.name, pdf_dir)
-        out_dir = Path(cfg.get("output_dir", "output"))
-        outputs.append(out_dir / f"{run_id}_metadata.jsonl")
+            outputs.append(run(tmp.name, pdf_dir, force=True))
     return outputs
   
 def ask_llm(text: str, question: str, temperature: float = 0.0, model: str = "gpt-4") -> str:
@@ -197,7 +220,7 @@ def _chunk_text(text: str, size: int) -> List[str]:
     return [text[i : i + size] for i in range(0, len(text), size)] or [text]
 
 
-def run_rounds(config_path: str, pdf_dir: str) -> None:
+def run_rounds(config_path: str, pdf_dir: str, force: bool = False) -> tuple[Path, Path] | None:
     """Run sequential QA rounds over the provided PDFs.
 
     The configuration file must define a ``rounds`` section with at least a
@@ -212,11 +235,17 @@ def run_rounds(config_path: str, pdf_dir: str) -> None:
     r2 = rounds_cfg.get("round2", {})
 
     model = cfg.llm_model
+    paths.set_project_root(Path(cfg.project_root) if cfg.project_root else paths.default_project_root())
     pdfs = find_pdfs(pdf_dir)
-    out_dir = Path(cfg.extra.get("output_dir", "output"))
+    out_dir = paths.get_path(cfg.extra.get("output_dir", "output"))
     out_dir.mkdir(parents=True, exist_ok=True)
-    out1 = out_dir / f"{cfg.run_id}_round1.jsonl"
-    out2 = out_dir / f"{cfg.run_id}_round2.jsonl"
+    exist1 = list(out_dir.glob(f"{cfg.run_id}_round1_*.jsonl"))
+    exist2 = list(out_dir.glob(f"{cfg.run_id}_round2_*.jsonl"))
+    if exist1 and exist2 and not force:
+        print("⏩ Skipping QA rounds (outputs present)")
+        return exist1[0], exist2[0]
+    out1 = out_dir / paths.timestamped_filename(f"{cfg.run_id}_round1")
+    out2 = out_dir / paths.timestamped_filename(f"{cfg.run_id}_round2")
 
     with open(out1, "w", encoding="utf-8") as f1, open(out2, "w", encoding="utf-8") as f2:
         for pdf in pdfs:
@@ -242,3 +271,4 @@ def run_rounds(config_path: str, pdf_dir: str) -> None:
                 f2.write(json.dumps(rec) + "\n")
 
     print("[INFO] QA rounds completed")
+    return out1, out2

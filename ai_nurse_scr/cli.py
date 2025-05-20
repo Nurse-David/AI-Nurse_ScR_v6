@@ -22,6 +22,11 @@ def main(argv=None):
     extract.add_argument(
         "--pdf-dir", help="Directory containing PDF files", required=True
     )
+    extract.add_argument(
+        "--force",
+        action="store_true",
+        help="Force re-run even if outputs exist",
+    )
 
     qa = subparsers.add_parser(
         "qa", help="Run sequential QA rounds on PDF files"
@@ -31,6 +36,11 @@ def main(argv=None):
     )
     qa.add_argument(
         "--pdf-dir", help="Directory containing PDF files", required=True
+    )
+    qa.add_argument(
+        "--force",
+        action="store_true",
+        help="Force re-run even if outputs exist",
     )
     
     spot = subparsers.add_parser(
@@ -60,12 +70,12 @@ def main(argv=None):
         if runs > 1:
             pipeline.run_multiple(args.config, args.pdf_dir, runs)
         else:
-            pipeline.run(args.config, args.pdf_dir)
+            pipeline.run(args.config, args.pdf_dir, force=args.force)
 
     elif args.command == "qa":
         setup.install_dependencies()
         setup.prepare_environment()
-        pipeline.run_rounds(args.config, args.pdf_dir)
+        pipeline.run_rounds(args.config, args.pdf_dir, force=args.force)
 
     elif args.command == "spotcheck":
         spotcheck_files(
