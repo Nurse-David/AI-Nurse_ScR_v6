@@ -1,4 +1,8 @@
 import json
+try:
+    import yaml
+except Exception:
+    yaml = None
 import tempfile
 import unittest
 from pathlib import Path
@@ -67,20 +71,25 @@ class TestPipelineHelpers(unittest.TestCase):
             json.dump({'pdf_dir': td, 'run_id': 'run', 'output_dir': td}, cfg)
             cfg.flush()
             Path(td, 'doc.pdf').touch()
-            pipeline.run(cfg.name, td)
-            out = Path(td) / 'run_metadata.jsonl'
-            self.assertTrue(out.exists())
+            pipeline.run(cfg.name, td, force=True)
+            meta_files = list(Path(td).glob('run_metadata_*.jsonl'))
+            self.assertTrue(meta_files)
             
             metrics_dir = Path('outputs/metrics')
             summary = metrics_dir / 'summary.csv'
             self.assertTrue(summary.exists())
-            snapshot = Path(td) / 'config_snapshot.json'
+            snapshot = Path(td) / 'config_snapshot.yaml'
             self.assertTrue(snapshot.exists())
             with open(snapshot) as sf:
-                snap = json.load(sf)
-            self.assertEqual(snap['config']['run_id'], 'run')
-            self.assertIn('version', snap)
-            self.assertIn('commit', snap)
+                snap = yaml.safe_load(sf) if yaml else json.load(sf)
+            self.assertEqual(snap['pdf_dir'], td)
+
+            run_info = Path(td) / 'run_info.yaml'
+            self.assertTrue(run_info.exists())
+            with open(run_info) as rf:
+                info = yaml.safe_load(rf) if yaml else json.load(rf)
+            self.assertIn('pipeline_version', info)
+            self.assertIn('git_hash', info)
 
     @patch("ai_nurse_scr.pipeline.ask_llm")
     @patch("ai_nurse_scr.pipeline.extract_text")
@@ -101,11 +110,11 @@ class TestPipelineHelpers(unittest.TestCase):
             }, cfg)
             cfg.flush()
             Path(td, 'doc.pdf').touch()
-            pipeline.run_rounds(cfg.name, td)
-            out1 = Path(td) / 'run_round1.jsonl'
-            out2 = Path(td) / 'run_round2.jsonl'
-            self.assertTrue(out1.exists())
-            self.assertTrue(out2.exists())
+            pipeline.run_rounds(cfg.name, td, force=True)
+            out1 = list(Path(td).glob('run_round1_*.jsonl'))
+            out2 = list(Path(td).glob('run_round2_*.jsonl'))
+            self.assertTrue(out1)
+            self.assertTrue(out2)
 
     @patch("ai_nurse_scr.pipeline.extract_data")
     @patch("ai_nurse_scr.pipeline.extract_text")
@@ -118,8 +127,7 @@ class TestPipelineHelpers(unittest.TestCase):
             Path(td, 'doc.pdf').touch()
             outputs = pipeline.run_multiple(cfg.name, td, rounds=2)
             self.assertEqual(len(outputs), 2)
-            self.assertTrue((Path(td) / 'run_round1_metadata.jsonl').exists())
-            self.assertTrue((Path(td) / 'run_round2_metadata.jsonl').exists())
+            self.assertTrue(all(p.exists() for p in outputs))
 
 
 if __name__ == '__main__':
