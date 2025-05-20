@@ -58,8 +58,13 @@ def extract_data(text: str, model: str = "gpt-4") -> dict:
 
 
 
-def run(config_path: str, pdf_dir: str, force: bool = False) -> Path | None:
-    """Run the pipeline sequentially using the given configuration and PDF directory."""
+def run_metadata(config_path: str, pdf_dir: str, force: bool = False) -> Path | None:
+    """Extract metadata from ``pdf_dir`` and write a ``*_metadata_*.jsonl`` file.
+
+    The function loads ``config_path`` using :func:`load_config` and will skip
+    execution if a matching output already exists unless ``force`` is ``True``.
+    The resulting JSON Lines file path is returned.
+    """
     cfg = config.load_config(config_path)
     print(f"[INFO] Loaded config from {config_path}")
 
@@ -81,10 +86,6 @@ def run(config_path: str, pdf_dir: str, force: bool = False) -> Path | None:
 # Pipeline stage implementations
 # ---------------------------------------------------------------------------
 
-# def run_metadata(config_path: str, pdf_dir: str) -> Path:
-#     """Extract metadata from PDFs and write ``*_metadata.jsonl`` output."""
-#    cfg = load_config(config_path)
-#    pdfs = find_pdfs(pdf_dir)
 
     chunk_size = int(cfg.extra.get("chunk_size", 200))
 
@@ -98,15 +99,11 @@ def run(config_path: str, pdf_dir: str, force: bool = False) -> Path | None:
         data = extract_data(text, model=cfg.llm_model)
         data["pdf_path"] = str(pdf)
         results.append(data)
-
-
-#    snapshot = asdict(cfg)
-
-
     out_dir = Path(cfg.extra.get("output_dir", "output"))
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    snapshot = {"config": asdict(cfg), "version": __version__}
+    snapshot = asdict(cfg)
+    snapshot["version"] = __version__
 
     try:
         commit = subprocess.check_output(
@@ -139,13 +136,6 @@ def run(config_path: str, pdf_dir: str, force: bool = False) -> Path | None:
 
         
     out_file = out_dir / paths.timestamped_filename(f"{cfg.run_id}_metadata")
-
-    
-
- #   with open(out_dir / "config_snapshot.json", "w", encoding="utf-8") as f:
- #       json.dump(snapshot, f, ensure_ascii=False, indent=2)
-
- #   out_file = out_dir / f"{cfg.run_id}_metadata.jsonl"
 
     with open(out_file, "w", encoding="utf-8") as f:
         for row in results:
@@ -233,19 +223,9 @@ def _chunk_text(text: str, size: int) -> List[str]:
 
 
 
-def run_rounds(config_path: str, pdf_dir: str, force: bool = False) -> tuple[Path, Path] | None:
-    """Run sequential QA rounds over the provided PDFs.
-
-    The configuration file must define a ``rounds`` section with at least a
-    ``question`` value. ``round1`` and ``round2`` subsections control the number
-    of chunks aggregated and sampling temperature respectively.
-    """
-    cfg = config.load_config(config_path)
-
-# def run_round1(config_path: str, pdf_dir: str) -> Path:
-#    """Run QA round 1 over the PDFs."""
-#    cfg = load_config(config_path)
-
+def run_round1(config_path: str, pdf_dir: str, force: bool = False) -> Path:
+    """Run QA round 1 over the PDFs and return the output path."""
+    cfg = load_config(config_path)
     rounds_cfg = cfg.extra.get("rounds", {})
     question = rounds_cfg.get("question", "")
     chunk_size = int(rounds_cfg.get("chunk_size", 2000))
@@ -256,15 +236,13 @@ def run_rounds(config_path: str, pdf_dir: str, force: bool = False) -> tuple[Pat
     pdfs = find_pdfs(pdf_dir)
     out_dir = paths.get_path(cfg.extra.get("output_dir", "output"))
     out_dir.mkdir(parents=True, exist_ok=True)
-    exist1 = list(out_dir.glob(f"{cfg.run_id}_round1_*.jsonl"))
-    exist2 = list(out_dir.glob(f"{cfg.run_id}_round2_*.jsonl"))
-    if exist1 and exist2 and not force:
-        print("⏩ Skipping QA rounds (outputs present)")
-        return exist1[0], exist2[0]
-    out1 = out_dir / paths.timestamped_filename(f"{cfg.run_id}_round1")
-    out2 = out_dir / paths.timestamped_filename(f"{cfg.run_id}_round2")
 
+    existing = list(out_dir.glob(f"{cfg.run_id}_round1_*.jsonl"))
+    if existing and not force:
+        print("⏩ Skipping round1 (output present)")
+        return existing[0]
 
+    out_file = out_dir / paths.timestamped_filename(f"{cfg.run_id}_round1")
     with open(out_file, "w", encoding="utf-8") as f1:
         for pdf in pdfs:
             text = extract_text(pdf)
@@ -290,7 +268,7 @@ def run_round2(config_path: str, pdf_dir: str) -> Path:
     pdfs = find_pdfs(pdf_dir)
     out_dir = Path(cfg.extra.get("output_dir", "output"))
     out_dir.mkdir(parents=True, exist_ok=True)
-    out_file = out_dir / f"{cfg.run_id}_round2.jsonl"
+    out_file = out_dir / paths.timestamped_filename(f"{cfg.run_id}_round2")
 
     with open(out_file, "w", encoding="utf-8") as f2:
         for pdf in pdfs:
@@ -349,8 +327,11 @@ def run(
     start: str = "metadata",
     stop: str = "synthesis",
     force: bool = False,
-) -> None:
-    """Run pipeline stages from ``start`` to ``stop`` inclusive."""
+) -> Path | None:
+    """Run pipeline stages from ``start`` to ``stop`` inclusive.
+
+    Returns the output path from the first executed stage.
+    """
 
     stage_names = list(STAGES.keys())
     if start not in STAGES or stop not in STAGES:
@@ -360,11 +341,18 @@ def run(
     if start_idx > stop_idx:
         raise ValueError("start must be before stop")
 
+    first_output: Path | None = None
     for name in stage_names[start_idx : stop_idx + 1]:
-        STAGES[name](config_path, pdf_dir)
+        func = STAGES[name]
+        if name in {"metadata", "round1"}:
+            out = func(config_path, pdf_dir, force=force)  # type: ignore[misc]
+        else:
+            out = func(config_path, pdf_dir)
+        if first_output is None:
+            first_output = out
 
     print("[INFO] Pipeline completed")
-
+    return first_output
 
 def run_multiple(config_path: str, pdf_dir: str, rounds: int) -> list[Path]:
     """Run the pipeline multiple times returning output file paths."""
@@ -380,15 +368,14 @@ def run_multiple(config_path: str, pdf_dir: str, rounds: int) -> list[Path]:
         with tempfile.NamedTemporaryFile("w+", suffix=".json", delete=False) as tmp:
             json.dump(cfg, tmp)
             tmp.flush()
-            run(tmp.name, pdf_dir)
-        out_dir = Path(cfg.get("output_dir", "output"))
-        outputs.append(out_dir / f"{run_id}_metadata.jsonl")
+            out_path = run(tmp.name, pdf_dir)
+        outputs.append(out_path)
     return outputs
 
 
-def run_rounds(config_path: str, pdf_dir: str) -> None:
-    """Compat wrapper that executes round 1 and round 2."""
-    run_round1(config_path, pdf_dir)
-    run_round2(config_path, pdf_dir)
+def run_rounds(config_path: str, pdf_dir: str, force: bool = False) -> tuple[Path, Path]:
+    """Execute QA rounds 1 and 2 sequentially and return their output paths."""
+    out1 = run_round1(config_path, pdf_dir, force=force)
+    out2 = run_round2(config_path, pdf_dir)
     print("[INFO] QA rounds completed")
     return out1, out2
