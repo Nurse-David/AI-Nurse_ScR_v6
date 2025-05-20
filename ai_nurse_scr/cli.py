@@ -23,9 +23,22 @@ def main(argv=None):
         "--pdf-dir", help="Directory containing PDF files", required=True
     )
     extract.add_argument(
+
+        "--start",
+        choices=list(pipeline.STAGES.keys()),
+        default="metadata",
+        help="Pipeline stage to start at",
+    )
+    extract.add_argument(
+        "--stop",
+        choices=list(pipeline.STAGES.keys()),
+        default="synthesis",
+        help="Pipeline stage to stop after",
+    )
+    extract.add_argument(
         "--force",
         action="store_true",
-        help="Force re-run even if outputs exist",
+        help="Force re-run stages even if outputs exist",
     )
 
     qa = subparsers.add_parser(
@@ -70,7 +83,14 @@ def main(argv=None):
         if runs > 1:
             pipeline.run_multiple(args.config, args.pdf_dir, runs)
         else:
-            pipeline.run(args.config, args.pdf_dir, force=args.force)
+
+            pipeline.run(
+                args.config,
+                args.pdf_dir,
+                start=args.start,
+                stop=args.stop,
+                force=args.force,
+            )
 
     elif args.command == "qa":
         setup.install_dependencies()
