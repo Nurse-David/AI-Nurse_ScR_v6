@@ -14,7 +14,12 @@ def install_dependencies() -> None:
             pkg = line.strip().split("==")[0]
             if not pkg:
                 continue
-            module = "fitz" if pkg == "pymupdf" else pkg.replace("-", "_")
+            if pkg == "pymupdf":
+                module = "fitz"
+            elif pkg == "pyyaml":
+                module = "yaml"
+            else:
+                module = pkg.replace("-", "_")
             try:
                 importlib.import_module(module)
             except Exception:
