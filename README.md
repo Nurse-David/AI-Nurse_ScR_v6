@@ -15,8 +15,11 @@ Clone the repository and install the required packages. If running locally you a
 git clone https://github.com/Nurse-David/AI-Nurse_ScR_v6.git
 cd AI-Nurse_ScR_v6
 pip install -r requirements.txt
+pip install -e .  # install the package locally
 export OPENAI_API_KEY=<your-api-key>  # only for local environments
 ```
+Installing the package ensures that `python -m ai_nurse_scr.cli` works from any
+location. Alternatively, run the CLI commands from the repository root.
 
 ## Running in Google Colab
 The repository ships with a helper module to simplify the Colab setup. The steps below walk through a full extraction run.
@@ -89,7 +92,7 @@ Two files (`*_round1.jsonl` and `*_round2.jsonl`) will be created in the output 
 All output files reside in the folder specified by `output_dir`. Download them from Drive or continue analysing them within Colab.
 
 ## Running the CLI Locally
-Outside Colab the commands are the same. Ensure your `OPENAI_API_KEY` environment variable is set and pass the path to your configuration file and PDF directory.
+Outside Colab the commands are the same. Install the package in editable mode or run the commands from the repository root so Python can locate `ai_nurse_scr`. Otherwise you'll see `ModuleNotFoundError: No module named 'ai_nurse_scr'`. Ensure your `OPENAI_API_KEY` environment variable is set and pass the path to your configuration file and PDF directory.
 
 ```bash
 python -m ai_nurse_scr.cli extract --config config.yaml --pdf-dir path/to/PDFs
