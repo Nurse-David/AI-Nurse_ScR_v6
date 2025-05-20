@@ -19,6 +19,10 @@ class ConfigError(Exception):
 class Config:
     pdf_dir: str
     run_id: str
+    llm_model: str = "gpt-4"
+    embedding_model: str = "text-embedding-3-large"
+    num_runs: int = 1
+    questions: list[Any] = field(default_factory=list)
     extra: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -69,4 +73,16 @@ def load_config(path: str, required_keys: Optional[Iterable[str]] = None) -> Con
 
     pdf_dir = data.pop("pdf_dir")
     run_id = data.pop("run_id")
-    return Config(pdf_dir=pdf_dir, run_id=run_id, extra=data)
+    llm_model = data.pop("llm_model", "gpt-4")
+    embedding_model = data.pop("embedding_model", "text-embedding-3-large")
+    num_runs = int(data.pop("num_runs", 1))
+    questions = data.pop("questions", [])
+    return Config(
+        pdf_dir=pdf_dir,
+        run_id=run_id,
+        llm_model=llm_model,
+        embedding_model=embedding_model,
+        num_runs=num_runs,
+        questions=questions,
+        extra=data,
+    )

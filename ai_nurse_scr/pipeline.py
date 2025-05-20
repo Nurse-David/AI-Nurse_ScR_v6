@@ -33,10 +33,14 @@ def extract_text(pdf_path: Path) -> str:
         return ""
 
 
-def extract_data(text: str) -> dict:
-    """Extract structured metadata from paper text."""
+def extract_data(text: str, model: str = "gpt-4") -> dict:
+    """Extract structured metadata from paper text.
+
+    The first step uses an LLM to infer metadata from the initial page
+    text before querying external services for enrichment.
+    """
     first_chunk = text[:4000]
-    meta = extraction.extract_ai_llm_full(first_chunk)
+    meta = extraction.extract_ai_llm_full(first_chunk, model=model)
     doi = meta.get("doi", "")
     if doi:
         cr = extraction.extract_crossref_full(doi, meta.get("title"))
@@ -65,7 +69,7 @@ def run(config_path: str, pdf_dir: str) -> None:
         tokens = metrics.simple_tokenize(text)
         chunks = metrics.make_chunks(tokens, chunk_size)
         all_chunks.extend(chunks)
-        data = extract_data(text)
+        data = extract_data(text, model=cfg.llm_model)
         data["pdf_path"] = str(pdf)
         results.append(data)
 
@@ -207,6 +211,7 @@ def run_rounds(config_path: str, pdf_dir: str) -> None:
     r1 = rounds_cfg.get("round1", {})
     r2 = rounds_cfg.get("round2", {})
 
+    model = cfg.llm_model
     pdfs = find_pdfs(pdf_dir)
     out_dir = Path(cfg.extra.get("output_dir", "output"))
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -221,13 +226,18 @@ def run_rounds(config_path: str, pdf_dir: str) -> None:
             # round 1 - aggregate larger context
             top_n = int(r1.get("top_n", len(chunks)))
             ctx = " ".join(chunks[:top_n])
-            ans1 = ask_llm(ctx, question, float(r1.get("temperature", 0.0)))
+            ans1 = ask_llm(
+                ctx,
+                question,
+                float(r1.get("temperature", 0.0)),
+                model=model,
+            )
             f1.write(json.dumps({"pdf_path": str(pdf), "answer": ans1}) + "\n")
 
             # round 2 - individual chunks
             temp2 = float(r2.get("temperature", 0.0))
             for idx, chunk in enumerate(chunks):
-                ans2 = ask_llm(chunk, question, temp2)
+                ans2 = ask_llm(chunk, question, temp2, model=model)
                 rec = {"pdf_path": str(pdf), "chunk_index": idx, "answer": ans2}
                 f2.write(json.dumps(rec) + "\n")
 

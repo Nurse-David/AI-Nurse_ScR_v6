@@ -5,7 +5,7 @@ The **AI Nurse Scoping Review (ScR) Pipeline** automates metadata extraction and
 ## Pipeline Overview
 1. **Configure paths and environment** – paths and settings are loaded from a YAML/JSON configuration file.
 2. **Collect PDFs** – place all documents to analyse in the chosen PDF folder.
-3. **Parse metadata and text** – the pipeline extracts text from each PDF and enriches it with metadata from external sources.
+3. **Parse metadata and text** – each PDF's first page is analysed by an LLM to infer basic metadata before contacting Crossref and OpenAlex for enrichment.
 4. **Write summary files** – results are saved as JSONL and CSV files for further analysis.
 
 ## Installation
@@ -31,7 +31,7 @@ The repository ships with a helper module to simplify the Colab setup. The steps
 ```python
 !pip install -r requirements.txt
 ```
-See `config_example.yaml` for the minimal keys (`pdf_dir`, `run_id`) your configuration file must define. JSON files follow the same schema.
+See `config_example.yaml` for the available configuration fields. At minimum you must set `pdf_dir` and `run_id`. Additional keys such as `llm_model`, `embedding_model`, `num_runs` and `questions` allow further customisation.
 
 Running this command executes the full extraction pipeline and writes a
 JSONL file of metadata to the configured output directory. Each run also
@@ -60,6 +60,12 @@ The minimal configuration requires a PDF directory and a run identifier.
 %%writefile config.yaml
 pdf_dir: "${pdf_dir}"
 run_id: my_first_run
+llm_model: gpt-4
+embedding_model: text-embedding-3-large
+num_runs: 1
+questions:
+  - slug: example
+    text: "Example question"
 output_dir: output
 ```
 
